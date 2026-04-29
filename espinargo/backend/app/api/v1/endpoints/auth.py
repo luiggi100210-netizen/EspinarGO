@@ -34,6 +34,7 @@ from app.schemas.base import MessageResponse
 from app.schemas.user import UserProfile, UserPublicOut
 from app.services.auth_service import AuthService
 from app.services.otp_service import OTPService
+from app.utils.rate_limit import check_login_rate_limit, check_register_rate_limit
 
 router = APIRouter(
     prefix="/auth",
@@ -65,6 +66,7 @@ async def health_check():
 )
 async def register(
     data: RegisterRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -72,6 +74,14 @@ async def register(
 
     El usuario recibe un código SMS para verificar su número.
     """
+    ip = request.client.host if request.client else "unknown"
+    allowed, wait = await check_register_rate_limit(ip)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Demasiados registros. Intenta en {wait // 60 + 1} minuto(s).",
+        )
+
     try:
         user = await AuthService.register(db, data)
     except ValueError as e:
@@ -168,7 +178,13 @@ async def login(
 
     Retorna tokens para autenticación en futuras requests.
     """
-    ip_address = request.client.host if request.client else None
+    ip_address = request.client.host if request.client else "unknown"
+    allowed, wait = await check_login_rate_limit(ip_address)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Demasiados intentos. Intenta en {wait // 60 + 1} minuto(s).",
+        )
 
     try:
         result = await AuthService.login(db, data, ip_address)

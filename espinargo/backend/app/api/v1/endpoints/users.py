@@ -28,6 +28,7 @@ from app.schemas.user import (
     UploadDocumentResponse,
     UserProfile,
 )
+from app.utils.serializers import driver_profile_to_public
 from sqlalchemy import select
 
 router = APIRouter(
@@ -130,20 +131,7 @@ async def update_vehicle(
     for field, value in update_data.items():
         setattr(driver_profile, field, value)
 
-    return DriverProfilePublic(
-        id=driver_profile.id,
-        vehicle_type=driver_profile.vehicle_type,
-        vehicle_brand=driver_profile.vehicle_brand,
-        vehicle_model=driver_profile.vehicle_model,
-        vehicle_year=driver_profile.vehicle_year,
-        vehicle_color=driver_profile.vehicle_color,
-        vehicle_plate=driver_profile.vehicle_plate,
-        vehicle_photo_url=driver_profile.vehicle_photo_url,
-        driver_status=driver_profile.driver_status.value,
-        rating_display=driver_profile.rating_display,
-        total_trips=driver_profile.total_trips,
-        is_online=driver_profile.is_online,
-    )
+    return driver_profile_to_public(driver_profile)
 
 
 DOCUMENT_TYPES = {
@@ -251,17 +239,4 @@ async def get_driver_profile(
             detail="Conductor no encontrado",
         )
 
-    return DriverProfilePublic(
-        id=driver_profile.id,
-        vehicle_type=driver_profile.vehicle_type,
-        vehicle_brand=driver_profile.vehicle_brand,
-        vehicle_model=driver_profile.vehicle_model,
-        vehicle_year=driver_profile.vehicle_year,
-        vehicle_color=driver_profile.vehicle_color,
-        vehicle_plate=driver_profile.vehicle_plate,
-        vehicle_photo_url=driver_profile.vehicle_photo_url,
-        driver_status=driver_profile.driver_status.value,
-        rating_display=driver_profile.rating_display,
-        total_trips=driver_profile.total_trips,
-        is_online=driver_profile.is_online,
-    )
+    return driver_profile_to_public(driver_profile)

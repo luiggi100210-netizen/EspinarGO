@@ -9,14 +9,11 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 
 from app.main import app
 from app.core.config import settings
 from app.core.database import Base, get_db
-from app.models.user import User
 
 
 TEST_PASSENGER = {
@@ -36,32 +33,31 @@ TEST_DRIVER = {
 }
 
 
-test_db_url = settings.DATABASE_URL_SYNC.replace("espinargo_db", "espinargo_test")
-test_engine = create_engine(test_db_url, connect_args={"check_same_thread": False})
-TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+test_db_url = settings.DATABASE_URL.replace("espinargo_db", "espinargo_test")
+test_engine = create_async_engine(test_db_url, poolclass=NullPool)
+TestAsyncSessionLocal = async_sessionmaker(test_engine, expire_on_commit=False)
 
 
-Base.metadata.create_all(bind=test_engine)
+async def override_get_db():
+    async with TestAsyncSessionLocal() as session:
+        yield session
 
 
-def override_get_db():
-    db = TestSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def setup_test_db():
+    async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
 
 
-@pytest.fixture(scope="function")
-def anyio_backend():
-    return "asyncio"
-
-
-@pytest.fixture
-def client():
+@pytest_asyncio.fixture
+async def client():
     app.dependency_overrides[get_db] = override_get_db
-    transport = ASGITransport(app=app)
-    return AsyncClient(transport=transport, base_url="http://test")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        yield c
+    app.dependency_overrides.clear()
 
 
 async def register_and_verify(client: AsyncClient, data: dict) -> dict:

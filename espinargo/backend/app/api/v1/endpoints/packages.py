@@ -9,9 +9,10 @@ Rutas bajo /api/v1/packages/
 
 import secrets
 from datetime import datetime, timezone
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -21,12 +22,12 @@ from app.models.user import User
 from app.schemas.base import PaginationMeta
 from app.schemas.package import (
     PackageListResponse,
-    PackagePublic,
     PackageRequest,
     PackageTrackingEvent,
     PackageTrackingResponse,
+    UpdatePackageStatusRequest,
 )
-from app.schemas.user import UserPublicOut
+from app.utils.serializers import package_to_public
 
 router = APIRouter(
     prefix="/packages",
@@ -84,24 +85,7 @@ async def create_package(
     )
     db.add(tracking_event)
 
-    return PackagePublic(
-        id=package.id,
-        tracking_code=package.tracking_code,
-        sender=UserPublicOut.model_validate(package.sender) if package.sender else None,
-        driver=UserPublicOut.model_validate(package.driver) if package.driver else None,
-        recipient_name=package.recipient_name,
-        recipient_phone=package.recipient_phone,
-        delivery_address=package.delivery_address,
-        size=package.size,
-        description=package.description,
-        is_fragile=package.is_fragile,
-        status=package.status.value,
-        price=package.price,
-        payment_method=package.payment_method,
-        created_at=package.created_at,
-        picked_up_at=package.picked_up_at,
-        delivered_at=package.delivered_at,
-    )
+    return package_to_public(package)
 
 
 @router.get(
@@ -145,24 +129,7 @@ async def track_package(
     ]
 
     return PackageTrackingResponse(
-        package=PackagePublic(
-            id=package.id,
-            tracking_code=package.tracking_code,
-            sender=UserPublicOut.model_validate(package.sender) if package.sender else None,
-            driver=UserPublicOut.model_validate(package.driver) if package.driver else None,
-            recipient_name=package.recipient_name,
-            recipient_phone=package.recipient_phone,
-            delivery_address=package.delivery_address,
-            size=package.size,
-            description=package.description,
-            is_fragile=package.is_fragile,
-            status=package.status.value,
-            price=package.price,
-            payment_method=package.payment_method,
-            created_at=package.created_at,
-            picked_up_at=package.picked_up_at,
-            delivered_at=package.delivered_at,
-        ),
+        package=package_to_public(package),
         tracking_history=tracking_events,
     )
 
@@ -184,9 +151,9 @@ async def get_my_packages(
     offset = (page - 1) * per_page
 
     count_result = await db.execute(
-        select(Package).where(Package.sender_id == current_user.id)
+        select(func.count()).select_from(Package).where(Package.sender_id == current_user.id)
     )
-    total = len(count_result.scalars().all())
+    total = count_result.scalar()
 
     result = await db.execute(
         select(Package)
@@ -197,32 +164,9 @@ async def get_my_packages(
     )
     packages = result.scalars().all()
 
-    package_list = []
-    for pkg in packages:
-        package_list.append(
-            PackagePublic(
-                id=pkg.id,
-                tracking_code=pkg.tracking_code,
-                sender=UserPublicOut.model_validate(pkg.sender) if pkg.sender else None,
-                driver=UserPublicOut.model_validate(pkg.driver) if pkg.driver else None,
-                recipient_name=pkg.recipient_name,
-                recipient_phone=pkg.recipient_phone,
-                delivery_address=pkg.delivery_address,
-                size=pkg.size,
-                description=pkg.description,
-                is_fragile=pkg.is_fragile,
-                status=pkg.status.value,
-                price=pkg.price,
-                payment_method=pkg.payment_method,
-                created_at=pkg.created_at,
-                picked_up_at=pkg.picked_up_at,
-                delivered_at=pkg.delivered_at,
-            )
-        )
-
     meta = PaginationMeta.create(total=total, page=page, per_page=per_page)
 
-    return PackageListResponse(packages=package_list, meta=meta)
+    return PackageListResponse(packages=[package_to_public(p) for p in packages], meta=meta)
 
 
 @router.post(
@@ -231,7 +175,7 @@ async def get_my_packages(
     summary="Asignar encomienda a mi cuenta de conductor",
 )
 async def assign_package(
-    package_id: str,
+    package_id: UUID,
     current_user: User = Depends(get_current_driver),
     db: AsyncSession = Depends(get_db),
 ):
@@ -262,24 +206,7 @@ async def assign_package(
     )
     db.add(tracking_event)
 
-    return PackagePublic(
-        id=package.id,
-        tracking_code=package.tracking_code,
-        sender=UserPublicOut.model_validate(package.sender) if package.sender else None,
-        driver=UserPublicOut.model_validate(package.driver) if package.driver else None,
-        recipient_name=package.recipient_name,
-        recipient_phone=package.recipient_phone,
-        delivery_address=package.delivery_address,
-        size=package.size,
-        description=package.description,
-        is_fragile=package.is_fragile,
-        status=package.status.value,
-        price=package.price,
-        payment_method=package.payment_method,
-        created_at=package.created_at,
-        picked_up_at=package.picked_up_at,
-        delivered_at=package.delivered_at,
-    )
+    return package_to_public(package)
 
 
 @router.post(
@@ -288,8 +215,8 @@ async def assign_package(
     summary="Actualizar estado de la encomienda",
 )
 async def update_package_status(
-    package_id: str,
-    status_data: dict,
+    package_id: UUID,
+    data: UpdatePackageStatusRequest,
     current_user: User = Depends(get_current_driver),
     db: AsyncSession = Depends(get_db),
 ):
@@ -314,16 +241,7 @@ async def update_package_status(
             detail="No tienes acceso a esta encomienda",
         )
 
-    new_status_str = status_data.get("status")
-    custom_description = status_data.get("description")
-
-    try:
-        new_status = PackageStatus(new_status_str)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Estado inválido",
-        )
+    new_status = PackageStatus(data.status)
 
     valid_transitions = {
         PackageStatus.ASSIGNED: [PackageStatus.PICKED_UP],
@@ -339,10 +257,11 @@ async def update_package_status(
 
     package.status = new_status
 
+    now = datetime.now(timezone.utc)
     if new_status == PackageStatus.PICKED_UP:
-        package.picked_up_at = datetime.now(timezone.utc)
+        package.picked_up_at = now
     elif new_status == PackageStatus.DELIVERED:
-        package.delivered_at = datetime.now(timezone.utc)
+        package.delivered_at = now
 
     status_descriptions = {
         PackageStatus.PICKED_UP: "Paquete recogido del remitente",
@@ -353,25 +272,8 @@ async def update_package_status(
     tracking_event = PackageTracking(
         package_id=package.id,
         status=new_status,
-        description=custom_description or status_descriptions.get(new_status, "Estado actualizado"),
+        description=data.description or status_descriptions.get(new_status, "Estado actualizado"),
     )
     db.add(tracking_event)
 
-    return PackagePublic(
-        id=package.id,
-        tracking_code=package.tracking_code,
-        sender=UserPublicOut.model_validate(package.sender) if package.sender else None,
-        driver=UserPublicOut.model_validate(package.driver) if package.driver else None,
-        recipient_name=package.recipient_name,
-        recipient_phone=package.recipient_phone,
-        delivery_address=package.delivery_address,
-        size=package.size,
-        description=package.description,
-        is_fragile=package.is_fragile,
-        status=package.status.value,
-        price=package.price,
-        payment_method=package.payment_method,
-        created_at=package.created_at,
-        picked_up_at=package.picked_up_at,
-        delivered_at=package.delivered_at,
-    )
+    return package_to_public(package)

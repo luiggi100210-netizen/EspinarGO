@@ -14,7 +14,7 @@ from app.core.database import get_db
 from app.middleware.auth import get_current_active_user
 from app.models.rating import Rating, RatingType
 from app.models.trip import Trip, TripStatus
-from app.models.user import User
+from app.models.user import DriverProfile, User
 from app.schemas.rating import RatingPublic, RatingRequest, RatingSummary
 from app.schemas.user import UserPublicOut
 
@@ -92,6 +92,16 @@ async def create_rating(
     )
 
     db.add(rating)
+    await db.flush()
+
+    if rating_type == RatingType.PASSENGER_TO_DRIVER:
+        dp_result = await db.execute(
+            select(DriverProfile).where(DriverProfile.user_id == rated_id)
+        )
+        dp = dp_result.scalar_one_or_none()
+        if dp:
+            dp.rating = round((dp.rating * dp.rating_count + data.score * 10) / (dp.rating_count + 1))
+            dp.rating_count += 1
 
     return RatingPublic(
         id=rating.id,
@@ -128,21 +138,17 @@ async def get_received_ratings(
     )
     ratings = result.scalars().all()
 
-    response = []
-    for rating in ratings:
-        rater_result = await db.get(User, rating.rater_id)
-        response.append(
-            RatingPublic(
-                id=rating.id,
-                score=rating.score,
-                comment=rating.comment,
-                rating_type=rating.rating_type.value,
-                created_at=rating.created_at,
-                rater=UserPublicOut.model_validate(rater_result) if rater_result else None,
-            )
+    return [
+        RatingPublic(
+            id=r.id,
+            score=r.score,
+            comment=r.comment,
+            rating_type=r.rating_type.value,
+            created_at=r.created_at,
+            rater=UserPublicOut.model_validate(r.rater) if r.rater else None,
         )
-
-    return response
+        for r in ratings
+    ]
 
 
 @router.get(

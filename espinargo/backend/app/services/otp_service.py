@@ -10,6 +10,7 @@ Maneja todo el ciclo de vida de los códigos de verificación:
 Este servicio es la única parte del sistema que habla con Twilio.
 """
 
+import asyncio
 import json
 from datetime import datetime, timezone
 from typing import Optional
@@ -348,10 +349,14 @@ class OTPService:
 
         try:
             client = get_twilio_client()
-            client.messages.create(
-                body=message,
-                from_=settings.TWILIO_PHONE_NUMBER,
-                to=phone_number,
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                None,
+                lambda: client.messages.create(
+                    body=message,
+                    from_=settings.TWILIO_PHONE_NUMBER,
+                    to=phone_number,
+                ),
             )
         except TwilioRestException as e:
             print(f"Error de Twilio: {e}")
