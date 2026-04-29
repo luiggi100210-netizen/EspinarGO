@@ -1,0 +1,1 @@
+"""Módulo de middleware de la aplicación EspinarGo."""

@@ -1,0 +1,1 @@
+# Core - Configuración central de la aplicación
