@@ -66,7 +66,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             },
             markers: markers,
             polylines: polylines,
-            onCameraIdle: () => _onCameraIdle(),
+            onCameraIdle: () {},
           ),
 
           // Capa 2: Panel superior
@@ -199,14 +199,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     // Navegar a la pantalla de búsqueda
-    final result = await Navigator.push<PlaceModel>(
+    await Navigator.push<PlaceModel>(
       context,
       MaterialPageRoute(builder: (_) => const SearchDestinationScreen()),
     );
-
-    if (result != null) {
-      // La selección ya se maneja en el provider
-    }
   }
 
   /// Centra el mapa en la ubicación actual.
@@ -221,11 +217,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       // Solicitar ubicación
       await ref.read(locationProvider.notifier).requestPermissionAndGetLocation();
     }
-  }
-
-  /// Callback cuando la cámara del mapa se detiene.
-  void _onCameraIdle() {
-    // Aquí se puede hacer reverse geocoding si es necesario
   }
 
   /// Callback cuando se presiona el botón de solicitar viaje.

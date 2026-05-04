@@ -38,7 +38,7 @@ class TripRepository {
       );
       return TripModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw Exception(_handleError(e));
+      throw Exception(DioClient.parseError(e));
     }
   }
 
@@ -51,7 +51,7 @@ class TripRepository {
       if (e.response?.statusCode == 404) {
         return null;
       }
-      throw Exception(_handleError(e));
+      throw Exception(DioClient.parseError(e));
     }
   }
 
@@ -66,7 +66,7 @@ class TripRepository {
           .map((json) => TripOfferModel.fromJson(json as Map<String, dynamic>))
           .toList();
     } on DioException catch (e) {
-      throw Exception(_handleError(e));
+      throw Exception(DioClient.parseError(e));
     }
   }
 
@@ -82,7 +82,7 @@ class TripRepository {
       );
       return TripModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw Exception(_handleError(e));
+      throw Exception(DioClient.parseError(e));
     }
   }
 
@@ -95,7 +95,7 @@ class TripRepository {
       );
       return TripModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw Exception(_handleError(e));
+      throw Exception(DioClient.parseError(e));
     }
   }
 
@@ -114,7 +114,7 @@ class TripRepository {
           .map((json) => TripModel.fromJson(json as Map<String, dynamic>))
           .toList();
     } on DioException catch (e) {
-      throw Exception(_handleError(e));
+      throw Exception(DioClient.parseError(e));
     }
   }
 
@@ -124,35 +124,8 @@ class TripRepository {
       final response = await _dioClient.get(ApiConstants.tripById(tripId));
       return TripModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw Exception(_handleError(e));
+      throw Exception(DioClient.parseError(e));
     }
   }
 
-  /// Manejo de errores de Dio.
-  String _handleError(DioException e) {
-    if (e.response?.data != null && e.response?.data is Map) {
-      final data = e.response?.data as Map<String, dynamic>;
-      if (data['detail'] != null) {
-        return data['detail'] as String;
-      }
-      if (data['message'] != null) {
-        return data['message'] as String;
-      }
-    }
-
-    switch (e.response?.statusCode) {
-      case 400:
-        return 'Datos inválidos';
-      case 404:
-        return 'No encontrado';
-      case 409:
-        return 'Conflicto con el estado actual';
-      case 429:
-        return 'Demasiados intentos. Espera unos minutos.';
-      case 500:
-        return 'Error del servidor. Intenta más tarde.';
-      default:
-        return 'Sin conexión a internet';
-    }
-  }
 }

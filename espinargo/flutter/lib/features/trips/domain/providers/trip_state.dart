@@ -66,9 +66,6 @@ class TripState {
     );
   }
 
-  /// factories
-  factory TripState.initial() => const TripState(isLoading: true);
-
   factory TripState.loading() => const TripState(isLoading: true);
 
   factory TripState.searching(TripModel trip) => TripState(

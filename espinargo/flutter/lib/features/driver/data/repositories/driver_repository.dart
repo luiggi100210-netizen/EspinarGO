@@ -15,10 +15,10 @@ class DriverRepository {
   /// Obtiene el perfil del conductor.
   Future<DriverProfileModel> getMyDriverProfile() async {
     try {
-      final response = await _dioClient.get('/api/v1/users/me/driver-profile');
+      final response = await _dioClient.get(ApiConstants.MY_DRIVER_PROFILE);
       return DriverProfileModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw Exception(_handleError(e));
+      throw Exception(DioClient.parseError(e));
     }
   }
 
@@ -26,12 +26,12 @@ class DriverRepository {
   Future<DriverProfileModel> setOnlineStatus(bool isOnline) async {
     try {
       final response = await _dioClient.patch(
-        '/api/v1/users/me/driver-profile/online',
+        ApiConstants.DRIVER_ONLINE_STATUS,
         data: {'is_online': isOnline},
       );
       return DriverProfileModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw Exception(_handleError(e));
+      throw Exception(DioClient.parseError(e));
     }
   }
 
@@ -42,7 +42,7 @@ class DriverRepository {
   }) async {
     try {
       await _dioClient.patch(
-        '/api/v1/users/me/driver-profile/location',
+        ApiConstants.DRIVER_LOCATION,
         data: {
           'current_lat': lat.toString(),
           'current_lng': lng.toString(),
@@ -61,7 +61,7 @@ class DriverRepository {
   }) async {
     try {
       final response = await _dioClient.post(
-        '/api/v1/trips/$tripId/offer',
+        ApiConstants.makeOffer(tripId),
         data: {
           'offered_price': offeredPrice,
           if (message != null) 'message': message,
@@ -69,7 +69,7 @@ class DriverRepository {
       );
       return TripOfferModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw Exception(_handleError(e));
+      throw Exception(DioClient.parseError(e));
     }
   }
 
@@ -113,44 +113,23 @@ class DriverRepository {
   }) async {
     try {
       final response = await _dioClient.get(
-        '/api/v1/trips/history',
+        '${ApiConstants.TRIPS}${ApiConstants.HISTORY}',
         queryParameters: {'page': page, 'per_page': perPage},
       );
       final data = response.data as List<dynamic>;
       return data.map((json) => TripModel.fromJson(json as Map<String, dynamic>)).toList();
     } on DioException catch (e) {
-      throw Exception(_handleError(e));
+      throw Exception(DioClient.parseError(e));
     }
   }
 
   /// Obtiene las ganancias del conductor.
   Future<Map<String, dynamic>> getDriverEarnings() async {
     try {
-      final response = await _dioClient.get('/api/v1/trips/driver/earnings');
+      final response = await _dioClient.get(ApiConstants.DRIVER_EARNINGS);
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
-      throw Exception(_handleError(e));
-    }
-  }
-
-  /// Manejo de errores.
-  String _handleError(DioException e) {
-    if (e.response?.data != null && e.response?.data is Map) {
-      final data = e.response?.data as Map<String, dynamic>;
-      if (data['detail'] != null) return data['detail'] as String;
-      if (data['message'] != null) return data['message'] as String;
-    }
-    switch (e.response?.statusCode) {
-      case 400:
-        return 'Datos inválidos';
-      case 403:
-        return 'No tienes permiso para esto';
-      case 404:
-        return 'No encontrado';
-      case 500:
-        return 'Error del servidor';
-      default:
-        return 'Sin conexión';
+      throw Exception(DioClient.parseError(e));
     }
   }
 }

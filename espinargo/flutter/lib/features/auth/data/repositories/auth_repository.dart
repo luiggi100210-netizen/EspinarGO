@@ -43,7 +43,7 @@ class AuthRepository {
       );
       return RegisterResponseModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw Exception(_handleDioError(e));
+      throw Exception(DioClient.parseError(e));
     }
   }
 
@@ -62,7 +62,7 @@ class AuthRepository {
       );
       return OTPResponseModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw Exception(_handleDioError(e));
+      throw Exception(DioClient.parseError(e));
     }
   }
 
@@ -84,7 +84,7 @@ class AuthRepository {
       );
       return true;
     } on DioException catch (e) {
-      throw Exception(_handleDioError(e));
+      throw Exception(DioClient.parseError(e));
     }
   }
 
@@ -131,7 +131,7 @@ class AuthRepository {
 
       return tokenResponse;
     } on DioException catch (e) {
-      throw Exception(_handleDioError(e));
+      throw Exception(DioClient.parseError(e));
     }
   }
 
@@ -168,7 +168,7 @@ class AuthRepository {
       );
       return UserModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw Exception(_handleDioError(e));
+      throw Exception(DioClient.parseError(e));
     }
   }
 
@@ -181,7 +181,7 @@ class AuthRepository {
       );
       return MessageResponseModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw Exception(_handleDioError(e));
+      throw Exception(DioClient.parseError(e));
     }
   }
 
@@ -202,7 +202,7 @@ class AuthRepository {
       );
       return MessageResponseModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw Exception(_handleDioError(e));
+      throw Exception(DioClient.parseError(e));
     }
   }
 
@@ -217,33 +217,4 @@ class AuthRepository {
     };
   }
 
-  /// Extrae el mensaje de error del response body.
-  String _handleDioError(DioException e) {
-    // Intentar extraer mensaje del response body
-    if (e.response?.data != null && e.response?.data is Map) {
-      final data = e.response?.data as Map<String, dynamic>;
-      if (data['detail'] != null) {
-        return data['detail'] as String;
-      }
-      if (data['message'] != null) {
-        return data['message'] as String;
-      }
-    }
-
-    // Mensaje genérico según statusCode
-    switch (e.response?.statusCode) {
-      case 401:
-        return 'Credenciales incorrectas';
-      case 400:
-        return 'Datos inválidos';
-      case 404:
-        return 'No encontrado';
-      case 429:
-        return 'Demasiados intentos. Espera unos minutos.';
-      case 500:
-        return 'Error del servidor. Intenta más tarde.';
-      default:
-        return 'Sin conexión a internet';
-    }
-  }
 }

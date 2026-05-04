@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/providers.dart';
 import '../../data/repositories/driver_repository.dart';
 import '../../data/services/driver_websocket_service.dart';
@@ -46,9 +45,13 @@ class DriverNotifier extends AsyncNotifier<DriverState> {
 
       if (profile.isOnline) {
         await _connectWebSocket();
+        return DriverState.online(profile);
       }
 
-      return DriverState.online(profile);
+      return DriverState(
+        flowStatus: DriverFlowStatus.offline,
+        driverProfile: profile,
+      );
     } catch (e) {
       return const DriverState();
     }

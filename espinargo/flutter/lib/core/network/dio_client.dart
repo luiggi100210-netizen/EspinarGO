@@ -42,81 +42,65 @@ class DioClient {
     String url, {
     Map<String, dynamic>? queryParameters,
     Options? options,
-  }) async {
-    try {
-      return await _dio.get(
-        url,
-        queryParameters: queryParameters,
-        options: options,
-      );
-    } on DioException {
-      rethrow;
-    }
-  }
+  }) =>
+      _dio.get(url, queryParameters: queryParameters, options: options);
 
   /// POST request
   Future<Response> post(
     String url, {
     dynamic data,
     Options? options,
-  }) async {
-    try {
-      return await _dio.post(
-        url,
-        data: data,
-        options: options,
-      );
-    } on DioException {
-      rethrow;
-    }
-  }
+  }) =>
+      _dio.post(url, data: data, options: options);
 
   /// PUT request
   Future<Response> put(
     String url, {
     dynamic data,
     Options? options,
-  }) async {
-    try {
-      return await _dio.put(
-        url,
-        data: data,
-        options: options,
-      );
-    } on DioException {
-      rethrow;
-    }
-  }
+  }) =>
+      _dio.put(url, data: data, options: options);
 
   /// PATCH request
   Future<Response> patch(
     String url, {
     dynamic data,
     Options? options,
-  }) async {
-    try {
-      return await _dio.patch(
-        url,
-        data: data,
-        options: options,
-      );
-    } on DioException {
-      rethrow;
-    }
-  }
+  }) =>
+      _dio.patch(url, data: data, options: options);
 
   /// DELETE request
   Future<Response> delete(
     String url, {
     Options? options,
-  }) async {
-    try {
-      return await _dio.delete(
-        url,
-        options: options,
-      );
-    } on DioException {
-      rethrow;
+  }) =>
+      _dio.delete(url, options: options);
+
+  /// Extrae el mensaje de error de un DioException.
+  /// Usado por todos los repositorios para evitar duplicación.
+  static String parseError(DioException e) {
+    if (e.response?.data != null && e.response?.data is Map) {
+      final data = e.response!.data as Map<String, dynamic>;
+      if (data['detail'] != null) return data['detail'] as String;
+      if (data['message'] != null) return data['message'] as String;
+    }
+    switch (e.response?.statusCode) {
+      case 400:
+        return 'Datos inválidos';
+      case 401:
+        return 'Credenciales incorrectas';
+      case 403:
+        return 'No tienes permiso para esto';
+      case 404:
+        return 'No encontrado';
+      case 409:
+        return 'Conflicto con el estado actual';
+      case 429:
+        return 'Demasiados intentos. Espera unos minutos.';
+      case 500:
+        return 'Error del servidor. Intenta más tarde.';
+      default:
+        return 'Sin conexión a internet';
     }
   }
 }

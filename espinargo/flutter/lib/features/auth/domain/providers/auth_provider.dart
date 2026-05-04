@@ -69,6 +69,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     required String role,
     String? email,
   }) async {
+    final previousState = state;
     state = const AsyncValue.loading();
 
     try {
@@ -81,16 +82,20 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
         email: email,
       );
 
-      // Registro exitoso, la pantalla navegará al OTP
+      state = previousState;
       return true;
     } catch (e) {
-      state = AsyncValue.error(e.toString(), StackTrace.current);
+      state = AsyncValue.error(
+        e.toString().replaceFirst('Exception: ', ''),
+        StackTrace.current,
+      );
       return false;
     }
   }
 
   /// Envía un código OTP al teléfono.
   Future<OTPResponseModel?> sendOTP(String phone, String purpose) async {
+    final previousState = state;
     state = const AsyncValue.loading();
 
     try {
@@ -99,15 +104,20 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
         phoneNumber: phone,
         purpose: purpose,
       );
+      state = previousState;
       return response;
     } catch (e) {
-      state = AsyncValue.error(e.toString(), StackTrace.current);
+      state = AsyncValue.error(
+        e.toString().replaceFirst('Exception: ', ''),
+        StackTrace.current,
+      );
       return null;
     }
   }
 
   /// Verifica el código OTP.
   Future<bool> verifyPhone(String phone, String code, String purpose) async {
+    final previousState = state;
     state = const AsyncValue.loading();
 
     try {
@@ -118,18 +128,14 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
         purpose: purpose,
       );
 
-      if (result) {
-        // Obtener el estado actual y actualizar
-        final currentState = state.valueOrNull ?? AuthState.unauthenticated();
-        state = AsyncValue.data(currentState.copyWith(
-          status: AuthStatus.authenticated,
-          isLoading: false,
-        ));
-      }
-
+      // La verificación solo confirma el teléfono; la navegación maneja el siguiente paso.
+      state = previousState;
       return result;
     } catch (e) {
-      state = AsyncValue.error(e.toString(), StackTrace.current);
+      state = AsyncValue.error(
+        e.toString().replaceFirst('Exception: ', ''),
+        StackTrace.current,
+      );
       return false;
     }
   }
@@ -148,7 +154,10 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       state = AsyncValue.data(AuthState.authenticated(tokenResponse.user));
       return true;
     } catch (e) {
-      state = AsyncValue.error(e.toString(), StackTrace.current);
+      state = AsyncValue.error(
+        e.toString().replaceFirst('Exception: ', ''),
+        StackTrace.current,
+      );
       return false;
     }
   }
@@ -173,20 +182,26 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
   /// Solicita recuperación de contraseña.
   Future<bool> forgotPassword(String phone) async {
+    final previousState = state;
     state = const AsyncValue.loading();
 
     try {
       final repository = ref.read(authRepositoryProvider);
       await repository.forgotPassword(phone);
+      state = previousState;
       return true;
     } catch (e) {
-      state = AsyncValue.error(e.toString(), StackTrace.current);
+      state = AsyncValue.error(
+        e.toString().replaceFirst('Exception: ', ''),
+        StackTrace.current,
+      );
       return false;
     }
   }
 
   /// Restablece la contraseña.
   Future<bool> resetPassword(String phone, String otp, String newPass) async {
+    final previousState = state;
     state = const AsyncValue.loading();
 
     try {
@@ -196,9 +211,13 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
         otpCode: otp,
         newPassword: newPass,
       );
+      state = previousState;
       return true;
     } catch (e) {
-      state = AsyncValue.error(e.toString(), StackTrace.current);
+      state = AsyncValue.error(
+        e.toString().replaceFirst('Exception: ', ''),
+        StackTrace.current,
+      );
       return false;
     }
   }

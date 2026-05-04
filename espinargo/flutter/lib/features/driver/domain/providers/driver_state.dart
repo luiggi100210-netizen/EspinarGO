@@ -74,14 +74,9 @@ class DriverState {
     );
   }
 
-  factory DriverState.initial() => const DriverState();
   factory DriverState.online(DriverProfileModel profile) => DriverState(
         flowStatus: DriverFlowStatus.online,
         driverProfile: profile,
-      );
-  factory DriverState.withRequest(Map<String, dynamic> request) => DriverState(
-        flowStatus: DriverFlowStatus.receivedRequest,
-        pendingRequests: [request],
       );
   factory DriverState.error(String message) => DriverState(
         flowStatus: DriverFlowStatus.error,

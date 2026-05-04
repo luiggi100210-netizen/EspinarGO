@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/constants/storage_keys.dart';
 import '../core/network/dio_client.dart';
-import '../core/theme/app_theme.dart';
 
 /// Proveedor de DioClient - cliente HTTP para la API
 final dioClientProvider = Provider<DioClient>((ref) {
@@ -74,8 +73,3 @@ class AppStateNotifier extends StateNotifier<AppState> {
     await prefs.setBool(StorageKeys.DARK_MODE, value);
   }
 }
-
-/// Proveedor de tema
-final themeProvider = Provider<AppTheme>((ref) {
-  return AppTheme();
-});
