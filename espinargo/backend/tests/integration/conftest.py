@@ -94,3 +94,36 @@ async def driver_token(client: AsyncClient) -> str:
         "password": "pass1234",
     })
     return resp.json()["access_token"]
+
+
+@pytest_asyncio.fixture
+async def admin_token(client: AsyncClient) -> str:
+    """Crea un usuario admin directamente en la DB y retorna su token."""
+    from sqlalchemy import select
+    from app.core.security import create_access_token
+
+    async with TestSession() as db:
+        result = await db.execute(
+            select(User).where(User.phone_number == "+51900000003")
+        )
+        admin = result.scalar_one_or_none()
+
+        if not admin:
+            admin = User(
+                full_name="Admin Test",
+                phone_number="+51900000003",
+                email="admin@test.com",
+                hashed_password=hash_password("adminpass"),
+                role=UserRole.ADMIN,
+                status=UserStatus.ACTIVE,
+                phone_verified=True,
+            )
+            db.add(admin)
+            await db.commit()
+            await db.refresh(admin)
+
+    return create_access_token(
+        user_id=admin.id,
+        role="admin",
+        phone_number=admin.phone_number,
+    )
