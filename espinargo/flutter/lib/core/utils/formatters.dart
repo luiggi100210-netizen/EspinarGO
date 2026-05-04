@@ -34,7 +34,7 @@ class Formatters {
     if (diff.inMinutes < 60) return 'hace ${diff.inMinutes} minuto${diff.inMinutes > 1 ? 's' : ''}';
     if (diff.inHours < 24) return 'hace ${diff.inHours} hora${diff.inHours > 1 ? 's' : ''}';
     if (diff.inDays < 7) return 'hace ${diff.inDays} día${diff.inDays > 1 ? 's' : ''}';
-    return date(date);
+    return Formatters.date(date);
   }
 
   /// Formatea teléfono para mostrar: "+51 987 654 321"

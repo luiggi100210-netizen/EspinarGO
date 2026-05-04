@@ -176,7 +176,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     } catch (_) {
       // Continuar con la limpieza aunque falle el server
     } finally {
-      state = const AsyncValue.data(AuthState.unauthenticated());
+      state = AsyncValue.data(AuthState.unauthenticated());
     }
   }
 
