@@ -3,18 +3,23 @@ Fixtures compartidas para tests de integración.
 
 Provee cliente HTTP, DB de test y usuarios pre-creados
 (pasajero verificado y conductor aprobado).
+
+Todos los fixtures de usuario son session-scoped para evitar problemas
+de event loop con el singleton de Redis en pytest-asyncio.
 """
 
 import pytest_asyncio
+import redis.asyncio as aioredis
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
 from app.core.database import Base, get_db
+from app.core.security import create_access_token, hash_password
 from app.main import app
 from app.models.user import DriverProfile, DriverStatus, User, UserRole, UserStatus
-from app.core.security import hash_password
 
 test_db_url = settings.DATABASE_URL.replace("espinargo_db", "espinargo_test")
 test_engine = create_async_engine(test_db_url, poolclass=NullPool)
@@ -23,19 +28,32 @@ TestSession = async_sessionmaker(test_engine, expire_on_commit=False)
 
 async def override_get_db():
     async with TestSession() as session:
-        yield session
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def setup_db():
+    # Limpiar Redis para evitar rate limits de ejecuciones anteriores
+    redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+    await redis.flushdb()
+    await redis.aclose()
+
     async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     yield
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(scope="session")
 async def client():
     app.dependency_overrides[get_db] = override_get_db
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
@@ -43,65 +61,85 @@ async def client():
     app.dependency_overrides.clear()
 
 
-@pytest_asyncio.fixture
-async def passenger_token(client: AsyncClient) -> str:
-    await client.post("/api/v1/auth/register", json={
-        "full_name": "Pasajero Test",
-        "phone_number": "+51900000001",
-        "email": "pasajero@test.com",
-        "password": "pass1234",
-        "role": "passenger",
-    })
-    await client.post("/api/v1/auth/verify-phone", json={
-        "phone_number": "+51900000001",
-        "code": "123456",
-        "purpose": "phone_verify",
-    })
-    resp = await client.post("/api/v1/auth/login", json={
-        "phone_number": "+51900000001",
-        "password": "pass1234",
-    })
-    return resp.json()["access_token"]
-
-
-@pytest_asyncio.fixture
-async def driver_token(client: AsyncClient) -> str:
-    await client.post("/api/v1/auth/register", json={
-        "full_name": "Conductor Test",
-        "phone_number": "+51900000002",
-        "email": "conductor@test.com",
-        "password": "pass1234",
-        "role": "driver",
-    })
-    await client.post("/api/v1/auth/verify-phone", json={
-        "phone_number": "+51900000002",
-        "code": "123456",
-        "purpose": "phone_verify",
-    })
-
+@pytest_asyncio.fixture(scope="session")
+async def passenger_token() -> str:
+    """Crea un usuario pasajero directamente en la DB y retorna su token."""
     async with TestSession() as db:
-        from sqlalchemy import select
+        result = await db.execute(
+            select(User).where(User.phone_number == "+51900000001")
+        )
+        passenger = result.scalar_one_or_none()
+
+        if not passenger:
+            passenger = User(
+                full_name="Pasajero Test",
+                phone_number="+51900000001",
+                email="pasajero@test.com",
+                password_hash=hash_password("pass1234"),
+                role=UserRole.PASSENGER,
+                status=UserStatus.ACTIVE,
+                phone_verified=True,
+            )
+            db.add(passenger)
+            await db.commit()
+            await db.refresh(passenger)
+
+    return create_access_token(
+        user_id=passenger.id,
+        role="passenger",
+        phone_number=passenger.phone_number,
+    )
+
+
+@pytest_asyncio.fixture(scope="session")
+async def driver_token() -> str:
+    """Crea un conductor aprobado directamente en la DB y retorna su token."""
+    async with TestSession() as db:
         result = await db.execute(
             select(User).where(User.phone_number == "+51900000002")
         )
-        user = result.scalar_one()
-        dp = user.driver_profile
-        dp.driver_status = DriverStatus.APPROVED
-        await db.commit()
+        driver = result.scalar_one_or_none()
 
-    resp = await client.post("/api/v1/auth/login", json={
-        "phone_number": "+51900000002",
-        "password": "pass1234",
-    })
-    return resp.json()["access_token"]
+        if not driver:
+            driver = User(
+                full_name="Conductor Test",
+                phone_number="+51900000002",
+                email="conductor@test.com",
+                password_hash=hash_password("pass1234"),
+                role=UserRole.DRIVER,
+                status=UserStatus.ACTIVE,
+                phone_verified=True,
+            )
+            db.add(driver)
+            await db.flush()
+
+            dp = DriverProfile(
+                user_id=driver.id,
+                driver_status=DriverStatus.APPROVED,
+            )
+            db.add(dp)
+            await db.commit()
+            await db.refresh(driver)
+        else:
+            # Asegurar que el conductor esté aprobado
+            result_dp = await db.execute(
+                select(DriverProfile).where(DriverProfile.user_id == driver.id)
+            )
+            dp = result_dp.scalar_one_or_none()
+            if dp:
+                dp.driver_status = DriverStatus.APPROVED
+                await db.commit()
+
+    return create_access_token(
+        user_id=driver.id,
+        role="driver",
+        phone_number=driver.phone_number,
+    )
 
 
-@pytest_asyncio.fixture
-async def admin_token(client: AsyncClient) -> str:
+@pytest_asyncio.fixture(scope="session")
+async def admin_token() -> str:
     """Crea un usuario admin directamente en la DB y retorna su token."""
-    from sqlalchemy import select
-    from app.core.security import create_access_token
-
     async with TestSession() as db:
         result = await db.execute(
             select(User).where(User.phone_number == "+51900000003")
@@ -113,7 +151,7 @@ async def admin_token(client: AsyncClient) -> str:
                 full_name="Admin Test",
                 phone_number="+51900000003",
                 email="admin@test.com",
-                hashed_password=hash_password("adminpass"),
+                password_hash=hash_password("adminpass"),
                 role=UserRole.ADMIN,
                 status=UserStatus.ACTIVE,
                 phone_verified=True,

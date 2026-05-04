@@ -17,11 +17,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.middleware.auth import get_current_active_user, get_current_driver
-from app.models.package import Package, PackageStatus, PackageTracking
+from app.models.package import Package, PackageSize, PackageStatus, PackageTracking
 from app.models.user import User
 from app.schemas.base import PaginationMeta
 from app.schemas.package import (
     PackageListResponse,
+    PackagePublic,
     PackageRequest,
     PackageTrackingEvent,
     PackageTrackingResponse,
@@ -68,7 +69,7 @@ async def create_package(
         recipient_name=data.recipient_name,
         recipient_phone=data.recipient_phone,
         delivery_address=data.delivery_address,
-        size=data.size,
+        size=PackageSize(data.size),
         description=data.description,
         is_fragile=data.is_fragile,
         payment_method=data.payment_method,

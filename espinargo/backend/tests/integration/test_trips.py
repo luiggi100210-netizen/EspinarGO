@@ -8,11 +8,11 @@ from httpx import AsyncClient
 
 TRIP_DATA = {
     "origin_address": "Plaza de Armas, Espinar",
-    "origin_lat": -14.832,
-    "origin_lng": -71.013,
+    "origin_lat": "-14.832",
+    "origin_lng": "-71.013",
     "dest_address": "Mercado Central, Espinar",
-    "dest_lat": -14.835,
-    "dest_lng": -71.010,
+    "dest_lat": "-14.835",
+    "dest_lng": "-71.010",
     "proposed_price": "8.00",
     "payment_method": "cash",
 }
@@ -157,7 +157,7 @@ class TestTripFlow:
 
         resp = await client.post(
             f"/api/v1/trips/{trip_id}/cancel",
-            json={"reason": "Cambié de opinión"},
+            json={"status": "cancelled"},
             headers={"Authorization": f"Bearer {passenger_token}"},
         )
         assert resp.status_code == 200

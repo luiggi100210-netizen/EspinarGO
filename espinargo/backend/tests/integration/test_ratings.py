@@ -10,11 +10,11 @@ from tests.integration.conftest import TestSession
 
 TRIP_DATA = {
     "origin_address": "Plaza de Armas, Espinar",
-    "origin_lat": -14.832,
-    "origin_lng": -71.013,
+    "origin_lat": "-14.832",
+    "origin_lng": "-71.013",
     "dest_address": "Mercado Central",
-    "dest_lat": -14.835,
-    "dest_lng": -71.010,
+    "dest_lat": "-14.835",
+    "dest_lng": "-71.010",
     "proposed_price": "8.00",
     "payment_method": "cash",
 }

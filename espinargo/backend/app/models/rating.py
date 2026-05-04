@@ -12,7 +12,7 @@ Cada viaje puede tener hasta 2 calificaciones:
 from enum import Enum as PyEnum
 from uuid import uuid4
 
-from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Enum, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 

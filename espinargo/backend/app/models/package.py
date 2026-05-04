@@ -78,7 +78,7 @@ class Package(BaseModel, Base):
         doc="quien envía el paquete",
     )
 
-    driver_id: Mapped[uuid4 | None] = mapped_column(
+    driver_id: Mapped[UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
@@ -249,7 +249,7 @@ class PackageTracking(BaseModel, Base):
         nullable=True,
     )
 
-    updated_by: Mapped[uuid4 | None] = mapped_column(
+    updated_by: Mapped[UUID | None] = mapped_column(
         UUID(as_uuid=True),
         nullable=True,
         doc="ID del usuario que generó el evento (conductor o sistema)",

@@ -134,7 +134,7 @@ class TestPackageFlow:
         tracking_resp = await client.get(
             f"/api/v1/packages/track/{create_resp.json()['tracking_code']}"
         )
-        assert len(tracking_resp.json()["tracking_history"]) == 4
+        assert len(tracking_resp.json()["tracking_history"]) == 5
 
     async def test_invalid_status_transition(self, client: AsyncClient, passenger_token: str, driver_token: str):
         create_resp = await client.post(

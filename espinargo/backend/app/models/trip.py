@@ -15,7 +15,7 @@ from datetime import datetime
 from enum import Enum as PyEnum
 from uuid import uuid4
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -90,7 +90,7 @@ class Trip(BaseModel, Base):
         doc="quien solicita el viaje",
     )
 
-    driver_id: Mapped[uuid4 | None] = mapped_column(
+    driver_id: Mapped[UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
@@ -162,7 +162,7 @@ class Trip(BaseModel, Base):
         nullable=True,
     )
 
-    cancelled_by: Mapped[uuid4 | None] = mapped_column(
+    cancelled_by: Mapped[UUID | None] = mapped_column(
         UUID(as_uuid=True),
         nullable=True,
         doc="ID del usuario que canceló el viaje",

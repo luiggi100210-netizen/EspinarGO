@@ -520,7 +520,7 @@ class DriverProfile(BaseModel, Base):
         doc="fecha en que el conductor fue aprobado",
     )
 
-    approved_by: Mapped[uuid4 | None] = mapped_column(
+    approved_by: Mapped[UUID | None] = mapped_column(
         UUID(as_uuid=True),
         nullable=True,
         doc="ID del admin que aprobó al conductor",

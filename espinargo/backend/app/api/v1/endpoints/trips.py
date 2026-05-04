@@ -20,7 +20,7 @@ from app.middleware.auth import (
     get_current_driver,
     get_current_passenger,
 )
-from app.models.trip import Trip, TripCancelReason, TripOffer, TripStatus
+from app.models.trip import PaymentMethod, Trip, TripCancelReason, TripOffer, TripStatus
 from app.models.user import User, UserRole
 from app.schemas.base import PaginationMeta
 from app.schemas.trip import (
@@ -63,7 +63,7 @@ async def create_trip(
         dest_lat=data.dest_lat,
         dest_lng=data.dest_lng,
         proposed_price=data.proposed_price,
-        payment_method=data.payment_method,
+        payment_method=PaymentMethod(data.payment_method),
         status=TripStatus.SEARCHING,
     )
     db.add(trip)
