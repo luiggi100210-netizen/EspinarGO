@@ -25,6 +25,7 @@ from fastapi.responses import JSONResponse
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import Base, check_database_connection, engine
+from app.websockets.manager import manager
 
 # Importar todos los modelos para que SQLAlchemy los registre
 # Estas importaciones son necesarias para que Base.metadata
@@ -52,6 +53,9 @@ async def lifespan(app: FastAPI):
     else:
         print("⚠️  Base de datos no conectada (Railway puede tardar en levantar)")
 
+    await manager.startup()
+    print("✅ WebSocket manager con Redis Pub/Sub iniciado")
+
     if settings.SENTRY_DSN and settings.is_production:
         import sentry_sdk
 
@@ -69,6 +73,7 @@ async def lifespan(app: FastAPI):
 
     # SHUTDOWN
     print("\n🛑 Cerrando aplicación...")
+    await manager.shutdown()
     await engine.dispose()
     print("✅ Conexiones de base de datos liberadas")
 
