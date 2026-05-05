@@ -16,7 +16,7 @@ También define los Enum usados en estos modelos:
 
 from datetime import datetime
 from enum import Enum as PyEnum
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
@@ -258,7 +258,7 @@ class RefreshToken(BaseModel, Base):
 
     __tablename__ = "refresh_tokens"
 
-    user_id: Mapped[uuid4] = mapped_column(
+    user_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
@@ -338,7 +338,7 @@ class OTPCode(BaseModel, Base):
 
     __tablename__ = "otp_codes"
 
-    user_id: Mapped[uuid4] = mapped_column(
+    user_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
@@ -406,7 +406,7 @@ class DriverProfile(BaseModel, Base):
 
     __tablename__ = "driver_profiles"
 
-    user_id: Mapped[uuid4] = mapped_column(
+    user_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         unique=True,

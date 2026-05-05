@@ -5,6 +5,7 @@ Solo accesibles para usuarios con rol ADMIN.
 Rutas bajo /api/v1/admin/
 """
 
+import asyncio
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
@@ -12,6 +13,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import AsyncSessionLocal
 
 from app.core.database import get_db
 from app.middleware.auth import get_current_admin
@@ -251,23 +254,48 @@ async def get_stats(
     db: AsyncSession = Depends(get_db),
 ):
     async def count(query) -> int:
-        r = await db.execute(query)
-        return r.scalar()
+        async with AsyncSessionLocal() as session:
+            r = await session.execute(query)
+            return r.scalar()
+
+    (
+        total_users,
+        active_users,
+        pending_users,
+        total_drivers,
+        approved_drivers,
+        pending_review_drivers,
+        total_trips,
+        completed_trips,
+        active_trips,
+        total_packages,
+        delivered_packages,
+    ) = await asyncio.gather(
+        count(select(func.count()).select_from(User)),
+        count(select(func.count()).select_from(User).where(User.status == UserStatus.ACTIVE)),
+        count(select(func.count()).select_from(User).where(User.status == UserStatus.PENDING)),
+        count(select(func.count()).select_from(DriverProfile)),
+        count(select(func.count()).select_from(DriverProfile).where(DriverProfile.driver_status == DriverStatus.APPROVED)),
+        count(select(func.count()).select_from(DriverProfile).where(DriverProfile.driver_status == DriverStatus.UNDER_REVIEW)),
+        count(select(func.count()).select_from(Trip)),
+        count(select(func.count()).select_from(Trip).where(Trip.status == TripStatus.COMPLETED)),
+        count(select(func.count()).select_from(Trip).where(
+            Trip.status.in_([TripStatus.SEARCHING, TripStatus.NEGOTIATING, TripStatus.ACCEPTED, TripStatus.IN_PROGRESS])
+        )),
+        count(select(func.count()).select_from(Package)),
+        count(select(func.count()).select_from(Package).where(Package.status == PackageStatus.DELIVERED)),
+    )
 
     return AdminStatsResponse(
-        total_users=await count(select(func.count()).select_from(User)),
-        active_users=await count(select(func.count()).select_from(User).where(User.status == UserStatus.ACTIVE)),
-        pending_users=await count(select(func.count()).select_from(User).where(User.status == UserStatus.PENDING)),
-        total_drivers=await count(select(func.count()).select_from(DriverProfile)),
-        approved_drivers=await count(select(func.count()).select_from(DriverProfile).where(DriverProfile.driver_status == DriverStatus.APPROVED)),
-        pending_review_drivers=await count(select(func.count()).select_from(DriverProfile).where(DriverProfile.driver_status == DriverStatus.UNDER_REVIEW)),
-        total_trips=await count(select(func.count()).select_from(Trip)),
-        completed_trips=await count(select(func.count()).select_from(Trip).where(Trip.status == TripStatus.COMPLETED)),
-        active_trips=await count(
-            select(func.count()).select_from(Trip).where(
-                Trip.status.in_([TripStatus.SEARCHING, TripStatus.NEGOTIATING, TripStatus.ACCEPTED, TripStatus.IN_PROGRESS])
-            )
-        ),
-        total_packages=await count(select(func.count()).select_from(Package)),
-        delivered_packages=await count(select(func.count()).select_from(Package).where(Package.status == PackageStatus.DELIVERED)),
+        total_users=total_users,
+        active_users=active_users,
+        pending_users=pending_users,
+        total_drivers=total_drivers,
+        approved_drivers=approved_drivers,
+        pending_review_drivers=pending_review_drivers,
+        total_trips=total_trips,
+        completed_trips=completed_trips,
+        active_trips=active_trips,
+        total_packages=total_packages,
+        delivered_packages=delivered_packages,
     )

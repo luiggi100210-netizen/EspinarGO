@@ -11,6 +11,9 @@ import '../constants/storage_keys.dart';
 /// - Redirigir al login si la sesión expiró
 class ApiInterceptor extends Interceptor {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final void Function()? onSessionExpired;
+
+  ApiInterceptor({this.onSessionExpired});
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
@@ -72,10 +75,10 @@ class ApiInterceptor extends Interceptor {
     handler.next(err);
   }
 
-  /// Limpia el storage y navega a login
+  /// Limpia el storage y notifica al authProvider para redirigir al login.
   Future<void> _clearSessionAndGoLogin() async {
     await _secureStorage.delete(key: StorageKeys.ACCESS_TOKEN);
     await _secureStorage.delete(key: StorageKeys.REFRESH_TOKEN);
-    // Navegar a login (se maneja en el provider de auth)
+    onSessionExpired?.call();
   }
 }

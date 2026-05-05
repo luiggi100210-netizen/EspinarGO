@@ -5,9 +5,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/constants/storage_keys.dart';
 import '../core/network/dio_client.dart';
 
+/// Señal que se incrementa cuando la sesión expira en el interceptor.
+/// El authProvider la escucha para forzar el logout en la UI.
+final sessionExpiredProvider = StateProvider<int>((ref) => 0);
+
 /// Proveedor de DioClient - cliente HTTP para la API
 final dioClientProvider = Provider<DioClient>((ref) {
-  return DioClient();
+  return DioClient(
+    onSessionExpired: () => ref.read(sessionExpiredProvider.notifier).state++,
+  );
 });
 
 /// Proveedor de FlutterSecureStorage - storage cifrado

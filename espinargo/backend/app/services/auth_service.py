@@ -16,6 +16,7 @@ from uuid import UUID
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.security import (
     create_access_token,
     generate_refresh_token,
@@ -232,7 +233,7 @@ class AuthService:
             "access_token": access_token,
             "refresh_token": refresh_token_str,
             "token_type": "bearer",
-            "expires_in": 30 * 60,
+            "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             "user": user,
         }
 
@@ -267,7 +268,7 @@ class AuthService:
         if not token_record:
             raise ValueError("Token de refresco inválido.")
 
-        if token_record.expires_at.replace(tzinfo=timezone.utc) < now:
+        if token_record.expires_at.astimezone(timezone.utc) < now:
             token_record.is_revoked = True
             raise ValueError(
                 "Token de refresco expirado. Inicia sesión de nuevo."
@@ -286,7 +287,7 @@ class AuthService:
         return {
             "access_token": new_access_token,
             "token_type": "bearer",
-            "expires_in": 30 * 60,
+            "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         }
 
     @staticmethod

@@ -30,7 +30,10 @@ final authProvider = AsyncNotifierProvider<AuthNotifier, AuthState>(() {
 class AuthNotifier extends AsyncNotifier<AuthState> {
   @override
   Future<AuthState> build() async {
-    // Estado inicial mientras verifica la sesión existente
+    // Cuando el interceptor detecta sesión expirada, forzar logout en la UI.
+    ref.listen(sessionExpiredProvider, (_, __) {
+      state = AsyncValue.data(AuthState.unauthenticated());
+    });
     return await _checkExistingSession();
   }
 

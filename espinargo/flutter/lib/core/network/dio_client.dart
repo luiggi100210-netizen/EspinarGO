@@ -8,7 +8,7 @@ import 'api_interceptor.dart';
 class DioClient {
   final Dio _dio;
 
-  DioClient() : _dio = Dio(
+  DioClient({void Function()? onSessionExpired}) : _dio = Dio(
     BaseOptions(
       baseUrl: ApiConstants.BASE_URL,
       connectTimeout: Duration(milliseconds: AppConstants.CONNECTION_TIMEOUT),
@@ -19,7 +19,7 @@ class DioClient {
     ),
   ) {
     // Agregar interceptor de autenticación y manejo de errores
-    _dio.interceptors.add(ApiInterceptor());
+    _dio.interceptors.add(ApiInterceptor(onSessionExpired: onSessionExpired));
     
     if (kDebugMode) {
       _dio.interceptors.add(

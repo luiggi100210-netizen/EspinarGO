@@ -13,7 +13,7 @@ La lógica de InDrive funciona así:
 
 from datetime import datetime
 from enum import Enum as PyEnum
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
@@ -82,7 +82,7 @@ class Trip(BaseModel, Base):
 
     __tablename__ = "trips"
 
-    passenger_id: Mapped[uuid4] = mapped_column(
+    passenger_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=False,
@@ -265,7 +265,7 @@ class TripOffer(BaseModel, Base):
 
     __tablename__ = "trip_offers"
 
-    trip_id: Mapped[uuid4] = mapped_column(
+    trip_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("trips.id", ondelete="CASCADE"),
         nullable=False,
@@ -273,7 +273,7 @@ class TripOffer(BaseModel, Base):
         doc="viaje al que pertenece esta oferta",
     )
 
-    driver_id: Mapped[uuid4] = mapped_column(
+    driver_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=False,

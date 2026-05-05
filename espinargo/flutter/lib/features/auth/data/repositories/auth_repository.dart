@@ -196,7 +196,7 @@ class AuthRepository {
         '${ApiConstants.AUTH}${ApiConstants.RESET_PASSWORD}',
         data: {
           'phone_number': phoneNumber,
-          'code': otpCode,
+          'otp_code': otpCode,
           'new_password': newPassword,
         },
       );

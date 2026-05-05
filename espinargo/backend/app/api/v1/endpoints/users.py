@@ -7,8 +7,10 @@ datos del vehículo del conductor y sus documentos.
 Rutas bajo /api/v1/users/
 """
 
+import asyncio
 import cloudinary
 import cloudinary.uploader
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -90,11 +92,15 @@ async def upload_avatar(
             detail="La imagen no puede superar 5MB",
         )
 
-    result = cloudinary.uploader.upload(
-        contents,
-        folder=f"espinargo/avatars/{current_user.id}",
-        public_id=str(current_user.id),
-        overwrite=True,
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: cloudinary.uploader.upload(
+            contents,
+            folder=f"espinargo/avatars/{current_user.id}",
+            public_id=str(current_user.id),
+            overwrite=True,
+        ),
     )
 
     current_user.avatar_url = result["secure_url"]
@@ -181,11 +187,15 @@ async def upload_document(
             detail="El documento no puede superar 10MB",
         )
 
-    result = cloudinary.uploader.upload(
-        contents,
-        folder=f"espinargo/documents/{current_user.id}",
-        public_id=document_type,
-        overwrite=True,
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: cloudinary.uploader.upload(
+            contents,
+            folder=f"espinargo/documents/{current_user.id}",
+            public_id=document_type,
+            overwrite=True,
+        ),
     )
 
     driver_profile = current_user.driver_profile
@@ -197,7 +207,7 @@ async def upload_document(
         for doc in REQUIRED_DOCS
     }
 
-    if all(current_docs.values()) and driver_profile.driver_status.value == "pending_docs":
+    if all(current_docs.values()) and driver_profile.driver_status == DriverStatus.PENDING_DOCS:
         driver_profile.driver_status = DriverStatus.UNDER_REVIEW
 
     return UploadDocumentResponse(
@@ -214,7 +224,7 @@ async def upload_document(
     summary="Ver perfil público de un conductor",
 )
 async def get_driver_profile(
-    driver_id: str,
+    driver_id: UUID,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):

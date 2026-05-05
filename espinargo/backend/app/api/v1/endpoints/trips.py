@@ -67,7 +67,7 @@ async def create_trip(
         status=TripStatus.SEARCHING,
     )
     db.add(trip)
-    await db.flush()
+    await db.commit()
 
     result = trip_to_public(trip)
     await manager.broadcast_to_drivers({
@@ -90,25 +90,14 @@ async def get_trip_history(
     db: AsyncSession = Depends(get_db),
 ):
     """Historial de viajes completados o cancelados (como pasajero o conductor)."""
-    if current_user.role in (UserRole.PASSENGER, UserRole.ADMIN):
-        passenger_filter = Trip.passenger_id == current_user.id
-    else:
-        passenger_filter = None
-
-    if current_user.role in (UserRole.DRIVER, UserRole.ADMIN):
-        driver_filter = Trip.driver_id == current_user.id
-    else:
-        driver_filter = None
-
-    if passenger_filter is not None and driver_filter is not None:
-        role_condition = or_(passenger_filter, driver_filter)
-    elif passenger_filter is not None:
-        role_condition = passenger_filter
-    else:
-        role_condition = driver_filter
-
     status_filter = Trip.status.in_([TripStatus.COMPLETED, TripStatus.CANCELLED])
-    where = and_(role_condition, status_filter)
+
+    if current_user.role == UserRole.ADMIN:
+        where = status_filter
+    elif current_user.role == UserRole.DRIVER:
+        where = and_(Trip.driver_id == current_user.id, status_filter)
+    else:
+        where = and_(Trip.passenger_id == current_user.id, status_filter)
 
     total = (await db.execute(select(func.count()).select_from(Trip).where(where))).scalar()
 
@@ -236,7 +225,7 @@ async def create_offer(
         trip.status = TripStatus.NEGOTIATING
 
     db.add(offer)
-    await db.flush()
+    await db.commit()
 
     result = TripOfferPublic(
         id=offer.id,
@@ -288,7 +277,7 @@ async def accept_offer(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Oferta no encontrada")
 
     now = datetime.now(timezone.utc)
-    expiry = offer.expires_at if offer.expires_at.tzinfo else offer.expires_at.replace(tzinfo=timezone.utc)
+    expiry = offer.expires_at.astimezone(timezone.utc)
     if expiry < now:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esta oferta ya expiró")
 

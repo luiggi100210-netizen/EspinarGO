@@ -268,7 +268,7 @@ class OTPService:
         if not otp:
             raise ValueError("No hay código activo. Solicita uno nuevo.")
 
-        if otp.expires_at.replace(tzinfo=timezone.utc) < now:
+        if otp.expires_at.astimezone(timezone.utc) < now:
             raise ValueError("El código expiró. Solicita uno nuevo.")
 
         if otp.attempts >= settings.OTP_MAX_ATTEMPTS:
@@ -349,7 +349,7 @@ class OTPService:
 
         try:
             client = get_twilio_client()
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(
                 None,
                 lambda: client.messages.create(
