@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
+import '../../../auth/domain/providers/auth_provider.dart';
 import '../../domain/providers/profile_provider.dart';
 import '../widgets/profile_header.dart';
 import '../widgets/profile_menu_item.dart';
@@ -114,7 +115,7 @@ class ProfileScreen extends ConsumerWidget {
                   const SizedBox(height: 24),
                   Center(
                     child: TextButton.icon(
-                      onPressed: () => _showLogoutDialog(context),
+                      onPressed: () => _showLogoutDialog(context, ref),
                       icon: const Icon(Icons.logout, color: AppColors.error),
                       label: const Text('Cerrar sesión', style: TextStyle(color: AppColors.error)),
                     ),
@@ -132,7 +133,7 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  void _showLogoutDialog(BuildContext context) {
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -141,9 +142,9 @@ class ProfileScreen extends ConsumerWidget {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              context.go('/login');
+              await ref.read(authProvider.notifier).logout();
             },
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
             child: const Text('Cerrar sesión'),
