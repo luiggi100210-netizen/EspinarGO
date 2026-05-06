@@ -31,6 +31,7 @@ final driverProvider = AsyncNotifierProvider<DriverNotifier, DriverState>(() {
 class DriverNotifier extends AsyncNotifier<DriverState> {
   final List<StreamSubscription> _subscriptions = [];
   StreamSubscription<dynamic>? _locationSubscription;
+  DriverWebSocketService? _wsService;
 
   @override
   Future<DriverState> build() async {
@@ -92,10 +93,10 @@ class DriverNotifier extends AsyncNotifier<DriverState> {
   }
 
   Future<void> _connectWebSocket() async {
-    final wsService = ref.read(driverWebSocketProvider);
-    await wsService.connect();
+    _wsService = ref.read(driverWebSocketProvider);
+    await _wsService!.connect();
 
-    _subscriptions.add(wsService.onNewTripRequest.listen((data) {
+    _subscriptions.add(_wsService!.onNewTripRequest.listen((data) {
       final currentState = state.valueOrNull;
       if (currentState != null) {
         final requests = [...currentState.pendingRequests, data];
@@ -108,7 +109,7 @@ class DriverNotifier extends AsyncNotifier<DriverState> {
       }
     }));
 
-    _subscriptions.add(wsService.onTripCancelled.listen((tripId) {
+    _subscriptions.add(_wsService!.onTripCancelled.listen((tripId) {
       final currentState = state.valueOrNull;
       if (currentState != null) {
         final requests = currentState.pendingRequests
@@ -123,7 +124,7 @@ class DriverNotifier extends AsyncNotifier<DriverState> {
       }
     }));
 
-    _subscriptions.add(wsService.onOfferAccepted.listen((data) {
+    _subscriptions.add(_wsService!.onOfferAccepted.listen((data) {
       final trip = TripModel.fromJson(data);
       final currentState = state.valueOrNull;
       if (currentState != null) {
@@ -135,7 +136,7 @@ class DriverNotifier extends AsyncNotifier<DriverState> {
       }
     }));
 
-    _subscriptions.add(wsService.onPassengerLocation.listen((data) {
+    _subscriptions.add(_wsService!.onPassengerLocation.listen((data) {
       final lat = data['lat'] as double;
       final lng = data['lng'] as double;
       final currentState = state.valueOrNull;
@@ -148,7 +149,7 @@ class DriverNotifier extends AsyncNotifier<DriverState> {
   }
 
   void _disconnectWebSocket() {
-    ref.read(driverWebSocketProvider).disconnect();
+    _wsService?.disconnect();
   }
 
   Future<void> _startLocationTracking() async {
@@ -265,10 +266,13 @@ class DriverNotifier extends AsyncNotifier<DriverState> {
       final repo = ref.read(driverRepositoryProvider);
       await repo.cancelTrip(tripId);
 
-      state = AsyncValue.data(currentState.copyWith(
-        currentTrip: null,
-        myOffer: null,
+      state = AsyncValue.data(DriverState(
         flowStatus: DriverFlowStatus.online,
+        driverProfile: currentState.driverProfile,
+        pendingRequests: const [],
+        todayEarnings: currentState.todayEarnings,
+        todayTrips: currentState.todayTrips,
+        isLocationTracking: currentState.isLocationTracking,
       ));
       return true;
     } catch (e) {
@@ -296,11 +300,12 @@ class DriverNotifier extends AsyncNotifier<DriverState> {
   void resetState() {
     final currentState = state.valueOrNull;
     if (currentState != null) {
-      state = AsyncValue.data(currentState.copyWith(
-        currentTrip: null,
-        myOffer: null,
-        passengerLocation: null,
+      state = AsyncValue.data(DriverState(
         flowStatus: DriverFlowStatus.online,
+        driverProfile: currentState.driverProfile,
+        todayEarnings: currentState.todayEarnings,
+        todayTrips: currentState.todayTrips,
+        isLocationTracking: currentState.isLocationTracking,
       ));
     }
   }
@@ -311,6 +316,7 @@ class DriverNotifier extends AsyncNotifier<DriverState> {
     }
     _subscriptions.clear();
     _locationSubscription?.cancel();
-    ref.read(driverWebSocketProvider).dispose();
+    _wsService?.dispose();
+    _wsService = null;
   }
 }

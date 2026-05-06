@@ -79,7 +79,7 @@ class DriverRepository {
       final response = await _dioClient.post(ApiConstants.startTrip(tripId));
       return TripModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw Exception(_handleError(e));
+      throw Exception(DioClient.parseError(e));
     }
   }
 
@@ -89,7 +89,7 @@ class DriverRepository {
       final response = await _dioClient.post(ApiConstants.completeTrip(tripId));
       return TripModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw Exception(_handleError(e));
+      throw Exception(DioClient.parseError(e));
     }
   }
 
@@ -102,7 +102,7 @@ class DriverRepository {
       );
       return TripModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw Exception(_handleError(e));
+      throw Exception(DioClient.parseError(e));
     }
   }
 
