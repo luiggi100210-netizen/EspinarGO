@@ -41,6 +41,31 @@ class ProfileRepository {
     }
   }
 
+  /// Sube un documento del conductor.
+  /// [documentType]: dni_front | dni_back | license | soat | property_card | selfie | vehicle_photo
+  /// Retorna la URL del documento subido y el estado del perfil del conductor.
+  Future<Map<String, String>> uploadDocument({
+    required String documentType,
+    required File file,
+  }) async {
+    try {
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(file.path),
+      });
+      final response = await _dioClient.post(
+        '${ApiConstants.USERS}/me/documents/$documentType',
+        data: formData,
+      );
+      final data = response.data as Map<String, dynamic>;
+      return {
+        'url': data['url'] as String,
+        'driver_status': data['driver_status'] as String,
+      };
+    } on DioException catch (e) {
+      throw Exception(_handleError(e));
+    }
+  }
+
   /// Sube una nueva foto de perfil.
   Future<UserModel> uploadAvatar(File imageFile) async {
     try {

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -137,17 +138,19 @@ class DocumentUploadTile extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.camera_alt),
               title: const Text('Cámara'),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(context);
-                onFileSelected(null);
+                final picked = await ImagePicker().pickImage(source: ImageSource.camera);
+                if (picked != null) onFileSelected(File(picked.path));
               },
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
               title: const Text('Galería'),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(context);
-                onFileSelected(null);
+                final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+                if (picked != null) onFileSelected(File(picked.path));
               },
             ),
           ],
