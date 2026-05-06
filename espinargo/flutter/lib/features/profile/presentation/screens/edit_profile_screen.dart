@@ -27,7 +27,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     super.initState();
     final user = ref.read(profileProvider).valueOrNull?.user;
     _nameController = TextEditingController(text: user?.fullName ?? '');
-    _phoneController = TextEditingController(text: user?.phone ?? '');
+    _phoneController = TextEditingController(text: user?.phoneNumber ?? '');
   }
 
   @override

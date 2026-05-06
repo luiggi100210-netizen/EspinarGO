@@ -46,7 +46,7 @@ class ProfileScreen extends ConsumerWidget {
                         ProfileMenuItem(
                           icon: Icons.history,
                           title: 'Historial de viajes',
-                          onTap: () => context.push('/trips'),
+                          onTap: () => context.push('/trips/history'),
                         ),
                         ProfileMenuItem(
                           icon: Icons.inventory_2,

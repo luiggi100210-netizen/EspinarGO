@@ -45,14 +45,15 @@ class ProfileHeader extends StatelessWidget {
           const SizedBox(height: 12),
           Text(user.fullName, style: AppTextStyles.headingSmall.copyWith(color: Colors.white)),
           const SizedBox(height: 4),
-          Text(user.email, style: AppTextStyles.bodySmall.copyWith(color: Colors.white70)),
+          if (user.email != null)
+            Text(user.email!, style: AppTextStyles.bodySmall.copyWith(color: Colors.white70)),
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildStat('Viajes', user.totalTrips.toString()),
+              _buildStat('Viajes', '—'),
               Container(width: 1, height: 20, color: Colors.white30, margin: const EdgeInsets.symmetric(horizontal: 16)),
-              _buildStat('Rating', user.rating.toStringAsFixed(1)),
+              _buildStat('Rating', '—'),
               if (user.isDriver) ...[
                 Container(width: 1, height: 20, color: Colors.white30, margin: const EdgeInsets.symmetric(horizontal: 16)),
                 _buildStat('Conductor', '✓'),
