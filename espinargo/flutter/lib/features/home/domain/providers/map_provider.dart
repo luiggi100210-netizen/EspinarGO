@@ -192,11 +192,10 @@ class MapNotifier extends AsyncNotifier<MapState> {
   /// Limpia la ruta y vuelve al modo idle.
   void clearRoute() {
     final currentState = state.valueOrNull ?? const MapState();
-    state = AsyncValue.data(currentState.copyWith(
-      origin: null,
-      destination: null,
-      route: null,
+    state = AsyncValue.data(MapState(
       mode: MapMode.idle,
+      selectedService: currentState.selectedService,
+      nearbyDrivers: currentState.nearbyDrivers,
     ));
   }
 

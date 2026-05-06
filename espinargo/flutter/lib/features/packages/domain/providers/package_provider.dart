@@ -116,10 +116,11 @@ class PackageNotifier extends AsyncNotifier<PackageState> {
   void clearTracking() {
     final currentState = state.valueOrNull;
     if (currentState != null) {
-      state = AsyncValue.data(currentState.copyWith(
-        trackedPackage: null,
-        trackingHistory: [],
+      state = AsyncValue.data(PackageState(
         flowStatus: PackageFlowStatus.idle,
+        myPackages: currentState.myPackages,
+        currentPage: currentState.currentPage,
+        hasMorePages: currentState.hasMorePages,
       ));
     }
   }
