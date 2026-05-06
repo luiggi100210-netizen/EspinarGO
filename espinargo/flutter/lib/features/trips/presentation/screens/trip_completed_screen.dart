@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared/widgets/primary_button.dart';
+import '../../../ratings/domain/providers/rating_provider.dart';
 import '../../domain/providers/trip_provider.dart';
 import '../widgets/trip_info_card.dart';
 import '../widgets/rating_dialog.dart';
@@ -38,9 +39,19 @@ class _TripCompletedScreenState extends ConsumerState<TripCompletedScreen> {
       barrierDismissible: false,
       builder: (context) => RatingDialog(
         driverName: driverName,
-        onSubmit: (score, comment) {
-          // TODO: Enviar calificación al backend
+        onSubmit: (score, comment) async {
           Navigator.pop(context);
+          final tripId = ref.read(tripProvider).valueOrNull?.currentTrip?.id;
+          if (tripId == null) return;
+          try {
+            await ref.read(ratingRepositoryProvider).createRating(
+              tripId: tripId,
+              score: score,
+              comment: comment,
+            );
+          } catch (_) {
+            // La calificación es opcional; un error no bloquea el flujo
+          }
         },
         onSkip: () {
           Navigator.pop(context);

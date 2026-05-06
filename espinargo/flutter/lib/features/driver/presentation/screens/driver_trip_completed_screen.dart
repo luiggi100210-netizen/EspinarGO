@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/widgets/primary_button.dart';
+import '../../../ratings/domain/providers/rating_provider.dart';
 import '../../domain/providers/driver_provider.dart';
 import '../../../trips/presentation/widgets/rating_dialog.dart';
 
@@ -32,8 +33,19 @@ class _DriverTripCompletedScreenState extends ConsumerState<DriverTripCompletedS
       barrierDismissible: false,
       builder: (context) => RatingDialog(
         driverName: 'Pasajero',
-        onSubmit: (score, comment) {
+        onSubmit: (score, comment) async {
           Navigator.pop(context);
+          final tripId = ref.read(driverProvider).valueOrNull?.currentTrip?.id;
+          if (tripId == null) return;
+          try {
+            await ref.read(ratingRepositoryProvider).createRating(
+              tripId: tripId,
+              score: score,
+              comment: comment,
+            );
+          } catch (_) {
+            // La calificación es opcional; un error no bloquea el flujo
+          }
         },
         onSkip: () => Navigator.pop(context),
       ),
