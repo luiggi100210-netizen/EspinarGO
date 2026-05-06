@@ -30,12 +30,11 @@ final tripProvider = AsyncNotifierProvider<TripNotifier, TripState>(() {
 /// Conecta la UI con el repositorio y el WebSocket.
 class TripNotifier extends AsyncNotifier<TripState> {
   final List<StreamSubscription> _subscriptions = [];
+  TripWebSocketService? _wsService;
 
   @override
   Future<TripState> build() async {
-    ref.onDispose(() {
-      _disposeAll();
-    });
+    ref.onDispose(_disposeAll);
     return _checkActiveTrip();
   }
 
@@ -125,12 +124,12 @@ class TripNotifier extends AsyncNotifier<TripState> {
 
   /// Conecta al WebSocket y escucha eventos.
   Future<void> _connectWebSocket(String tripId) async {
-    final wsService = ref.read(tripWebSocketProvider);
+    _wsService = ref.read(tripWebSocketProvider);
 
-    await wsService.connect(tripId);
+    await _wsService!.connect(tripId);
 
     // Escuchar nuevas ofertas
-    _subscriptions.add(wsService.onNewOffer.listen((data) {
+    _subscriptions.add(_wsService!.onNewOffer.listen((data) {
       final offer = TripOfferModel.fromJson(data);
       final currentState = state.valueOrNull;
       if (currentState != null) {
@@ -143,7 +142,7 @@ class TripNotifier extends AsyncNotifier<TripState> {
     }));
 
     // Escuchar actualizaciones del viaje
-    _subscriptions.add(wsService.onTripUpdated.listen((data) {
+    _subscriptions.add(_wsService!.onTripUpdated.listen((data) {
       final trip = TripModel.fromJson(data);
       final currentState = state.valueOrNull;
       if (currentState != null) {
@@ -155,7 +154,7 @@ class TripNotifier extends AsyncNotifier<TripState> {
     }));
 
     // Escuchar ubicación del conductor
-    _subscriptions.add(wsService.onDriverLocation.listen((data) {
+    _subscriptions.add(_wsService!.onDriverLocation.listen((data) {
       final lat = data['lat'] as double;
       final lng = data['lng'] as double;
       final currentState = state.valueOrNull;
@@ -167,7 +166,7 @@ class TripNotifier extends AsyncNotifier<TripState> {
     }));
 
     // Conductor llegó
-    _subscriptions.add(wsService.onDriverArrived.listen((_) {
+    _subscriptions.add(_wsService!.onDriverArrived.listen((_) {
       final currentState = state.valueOrNull;
       if (currentState != null) {
         state = AsyncValue.data(currentState.copyWith(
@@ -177,7 +176,7 @@ class TripNotifier extends AsyncNotifier<TripState> {
     }));
 
     // Viaje iniciado
-    _subscriptions.add(wsService.onTripStarted.listen((_) {
+    _subscriptions.add(_wsService!.onTripStarted.listen((_) {
       final currentState = state.valueOrNull;
       if (currentState != null) {
         state = AsyncValue.data(currentState.copyWith(
@@ -187,7 +186,7 @@ class TripNotifier extends AsyncNotifier<TripState> {
     }));
 
     // Viaje completado
-    _subscriptions.add(wsService.onTripCompleted.listen((_) {
+    _subscriptions.add(_wsService!.onTripCompleted.listen((_) {
       final currentState = state.valueOrNull;
       if (currentState != null) {
         state = AsyncValue.data(currentState.copyWith(
@@ -312,6 +311,7 @@ class TripNotifier extends AsyncNotifier<TripState> {
       sub.cancel();
     }
     _subscriptions.clear();
-    ref.read(tripWebSocketProvider).dispose();
+    _wsService?.dispose();
+    _wsService = null;
   }
 }
