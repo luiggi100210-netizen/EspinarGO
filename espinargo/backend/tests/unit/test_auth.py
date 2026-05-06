@@ -8,9 +8,11 @@ login, perfil y refresh token.
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+import app.services.otp_service as otp_module
 from app.main import app
 from app.core.config import settings
 from app.core.database import Base, get_db
@@ -40,7 +42,14 @@ TestAsyncSessionLocal = async_sessionmaker(test_engine, expire_on_commit=False)
 
 async def override_get_db():
     async with TestAsyncSessionLocal() as session:
-        yield session
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
@@ -58,6 +67,43 @@ async def client():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
     app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def clean_between_tests():
+    """Limpia la BD y Redis antes y después de cada test.
+
+    Setup:
+      - Resetea el singleton de Redis (evita 'Future attached to a different loop').
+      - Crea una conexión temporal para borrar claves de rate-limit acumuladas
+        de runs anteriores o del test previo.
+
+    Teardown:
+      - Trunca todas las tablas para dejar la BD limpia.
+      - Cierra y resetea el cliente Redis del test actual.
+    """
+    # 1. Flush Redis para eliminar claves de rate-limit acumuladas
+    otp_module._redis_client = None
+    _tmp = await otp_module.get_redis()
+    await _tmp.flushdb()
+    await _tmp.aclose()
+    otp_module._redis_client = None  # el test crea su propia conexión cuando la necesite
+
+    yield
+
+    # 2. Limpiar BD
+    async with TestAsyncSessionLocal() as session:
+        await session.execute(text(
+            "TRUNCATE TABLE ratings, trip_offers, trips, "
+            "package_tracking, packages, otp_codes, refresh_tokens, "
+            "driver_profiles, users RESTART IDENTITY CASCADE"
+        ))
+        await session.commit()
+
+    # 3. Cerrar y resetear el cliente Redis creado durante el test
+    if otp_module._redis_client is not None:
+        await otp_module._redis_client.aclose()
+    otp_module._redis_client = None
 
 
 async def register_and_verify(client: AsyncClient, data: dict) -> dict:
