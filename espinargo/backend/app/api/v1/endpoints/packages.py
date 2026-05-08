@@ -7,44 +7,27 @@ actualizar estado e historial.
 Rutas bajo /api/v1/packages/
 """
 
-import secrets
-from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.middleware.auth import get_current_active_user, get_current_driver
-from app.models.package import Package, PackageSize, PackageStatus, PackageTracking
 from app.models.user import User
-from app.schemas.base import PaginationMeta
 from app.schemas.package import (
     PackageListResponse,
     PackagePublic,
     PackageRequest,
-    PackageTrackingEvent,
     PackageTrackingResponse,
     UpdatePackageStatusRequest,
 )
-from app.utils.serializers import package_to_public
+from app.services.package_service import PackageService
 
 router = APIRouter(
     prefix="/packages",
     tags=["Encomiendas"],
 )
-
-
-def generate_tracking_code() -> str:
-    """
-    Genera un código de seguimiento único.
-    Formato: ESP-YYYYMMDD-NNNN
-    """
-    now = datetime.now(timezone.utc)
-    date_part = now.strftime("%Y%m%d")
-    number = secrets.randbelow(10000)
-    return f"ESP-{date_part}-{number:04d}"
 
 
 @router.post(
@@ -58,35 +41,8 @@ async def create_package(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Crea una nueva encomienda para enviar.
-    """
-    tracking_code = generate_tracking_code()
-
-    package = Package(
-        sender_id=current_user.id,
-        tracking_code=tracking_code,
-        recipient_name=data.recipient_name,
-        recipient_phone=data.recipient_phone,
-        delivery_address=data.delivery_address,
-        size=PackageSize(data.size),
-        description=data.description,
-        is_fragile=data.is_fragile,
-        payment_method=data.payment_method,
-        status=PackageStatus.PENDING,
-    )
-
-    db.add(package)
-    await db.flush()
-
-    tracking_event = PackageTracking(
-        package_id=package.id,
-        status=PackageStatus.PENDING,
-        description="Encomienda registrada. Buscando conductor...",
-    )
-    db.add(tracking_event)
-
-    return package_to_public(package)
+    """Crea una nueva encomienda para enviar."""
+    return await PackageService.create_package(db, current_user, data)
 
 
 @router.get(
@@ -102,37 +58,10 @@ async def track_package(
     Rastrea una encomienda por su código de seguimiento.
     Este endpoint es público para que el destinatario pueda rastrear.
     """
-    result = await db.execute(
-        select(Package).where(Package.tracking_code == tracking_code)
-    )
-    package = result.scalar_one_or_none()
-
-    if not package:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Código de seguimiento inválido",
-        )
-
-    tracking_result = await db.execute(
-        select(PackageTracking)
-        .where(PackageTracking.package_id == package.id)
-        .order_by(PackageTracking.created_at)
-    )
-    tracking_history = tracking_result.scalars().all()
-
-    tracking_events = [
-        PackageTrackingEvent(
-            status=event.status.value,
-            description=event.description,
-            created_at=event.created_at,
-        )
-        for event in tracking_history
-    ]
-
-    return PackageTrackingResponse(
-        package=package_to_public(package),
-        tracking_history=tracking_events,
-    )
+    try:
+        return await PackageService.track_package(db, tracking_code)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.get(
@@ -146,28 +75,8 @@ async def get_my_packages(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Retorna las encomiendas enviadas por el usuario.
-    """
-    offset = (page - 1) * per_page
-
-    count_result = await db.execute(
-        select(func.count()).select_from(Package).where(Package.sender_id == current_user.id)
-    )
-    total = count_result.scalar()
-
-    result = await db.execute(
-        select(Package)
-        .where(Package.sender_id == current_user.id)
-        .order_by(Package.created_at.desc())
-        .offset(offset)
-        .limit(per_page)
-    )
-    packages = result.scalars().all()
-
-    meta = PaginationMeta.create(total=total, page=page, per_page=per_page)
-
-    return PackageListResponse(packages=[package_to_public(p) for p in packages], meta=meta)
+    """Retorna las encomiendas enviadas por el usuario."""
+    return await PackageService.get_my_packages(db, current_user, page, per_page)
 
 
 @router.post(
@@ -180,34 +89,11 @@ async def assign_package(
     current_user: User = Depends(get_current_driver),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    El conductor se asigna una encomienda pendiente.
-    """
-    package = await db.get(Package, package_id)
-
-    if not package:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Encomienda no encontrada",
-        )
-
-    if package.status != PackageStatus.PENDING:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Esta encomienda ya tiene conductor asignado",
-        )
-
-    package.driver_id = current_user.id
-    package.status = PackageStatus.ASSIGNED
-
-    tracking_event = PackageTracking(
-        package_id=package.id,
-        status=PackageStatus.ASSIGNED,
-        description="Conductor asignado. En camino a recoger el paquete.",
-    )
-    db.add(tracking_event)
-
-    return package_to_public(package)
+    """El conductor se asigna una encomienda pendiente."""
+    try:
+        return await PackageService.assign_package(db, package_id, current_user)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.post(
@@ -228,53 +114,9 @@ async def update_package_status(
     PICKED_UP → IN_TRANSIT
     IN_TRANSIT → DELIVERED
     """
-    package = await db.get(Package, package_id)
-
-    if not package:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Encomienda no encontrada",
-        )
-
-    if package.driver_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tienes acceso a esta encomienda",
-        )
-
-    new_status = PackageStatus(data.status)
-
-    valid_transitions = {
-        PackageStatus.ASSIGNED: [PackageStatus.PICKED_UP],
-        PackageStatus.PICKED_UP: [PackageStatus.IN_TRANSIT],
-        PackageStatus.IN_TRANSIT: [PackageStatus.DELIVERED],
-    }
-
-    if new_status not in valid_transitions.get(package.status, []):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Transición no válida. Estados posibles: {', '.join([s.value for s in valid_transitions.get(package.status, [])])}",
-        )
-
-    package.status = new_status
-
-    now = datetime.now(timezone.utc)
-    if new_status == PackageStatus.PICKED_UP:
-        package.picked_up_at = now
-    elif new_status == PackageStatus.DELIVERED:
-        package.delivered_at = now
-
-    status_descriptions = {
-        PackageStatus.PICKED_UP: "Paquete recogido del remitente",
-        PackageStatus.IN_TRANSIT: "Paquete en camino al destino",
-        PackageStatus.DELIVERED: "Paquete entregado al destinatario",
-    }
-
-    tracking_event = PackageTracking(
-        package_id=package.id,
-        status=new_status,
-        description=data.description or status_descriptions.get(new_status, "Estado actualizado"),
-    )
-    db.add(tracking_event)
-
-    return package_to_public(package)
+    try:
+        return await PackageService.update_package_status(db, package_id, current_user, data)
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
