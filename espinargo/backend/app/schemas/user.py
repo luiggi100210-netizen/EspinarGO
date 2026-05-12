@@ -66,6 +66,13 @@ class UpdateProfileRequest(EspinarGoBaseModel):
         description="Español o quechua (lengua de Espinar)",
     )
 
+    @field_validator("preferred_lang")
+    @classmethod
+    def validate_lang(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in ("es", "qu"):
+            raise ValueError("El idioma debe ser 'es' (español) o 'qu' (quechua)")
+        return v
+
     @field_validator("full_name")
     @classmethod
     def normalize_name(cls, v: Optional[str]) -> Optional[str]:
@@ -163,3 +170,27 @@ class UploadDocumentResponse(EspinarGoBaseModel):
     document_type: str = Field(..., description="Qué documento se subió")
     url: str = Field(..., description="URL de Cloudinary del documento")
     driver_status: str = Field(..., description="Nuevo estado del conductor")
+
+
+class DocumentStatusResponse(EspinarGoBaseModel):
+    """
+    Estado actual de los documentos del conductor.
+    """
+
+    dni_front_url: Optional[str]
+    dni_back_url: Optional[str]
+    license_url: Optional[str]
+    soat_url: Optional[str]
+    selfie_url: Optional[str]
+    property_card_url: Optional[str]
+    vehicle_photo_url: Optional[str]
+    driver_status: str
+    rejection_reason: Optional[str] = None
+
+
+class UpdateOnlineStatusRequest(EspinarGoBaseModel):
+    """
+    Activar o desactivar disponibilidad del conductor.
+    """
+
+    is_online: bool = Field(..., description="True para activarse, False para desactivarse")

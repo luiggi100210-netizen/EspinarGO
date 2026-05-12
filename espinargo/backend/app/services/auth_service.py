@@ -268,7 +268,10 @@ class AuthService:
         if not token_record:
             raise ValueError("Token de refresco inválido.")
 
-        if token_record.expires_at.astimezone(timezone.utc) < now:
+        expires_at = token_record.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at < now:
             token_record.is_revoked = True
             raise ValueError(
                 "Token de refresco expirado. Inicia sesión de nuevo."
@@ -278,6 +281,18 @@ class AuthService:
         if not user or user.status != UserStatus.ACTIVE:
             raise ValueError("Usuario no válido o inactivo.")
 
+        # Rotación de token: revocar el actual y emitir uno nuevo
+        token_record.is_revoked = True
+        new_refresh_token_str = generate_refresh_token()
+        db.add(RefreshToken(
+            user_id=user.id,
+            token=new_refresh_token_str,
+            expires_at=get_refresh_token_expiry(),
+            device_name=token_record.device_name,
+            device_os=token_record.device_os,
+            ip_address=token_record.ip_address,
+        ))
+
         new_access_token = create_access_token(
             user_id=user.id,
             role=user.role.value,
@@ -286,6 +301,7 @@ class AuthService:
 
         return {
             "access_token": new_access_token,
+            "refresh_token": new_refresh_token_str,
             "token_type": "bearer",
             "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         }
@@ -404,6 +420,37 @@ class AuthService:
             "message": "Tu contraseña ha sido restablecida. "
             "Por favor, inicia sesión con tu nueva contraseña."
         }
+
+    @staticmethod
+    async def get_sessions(db: AsyncSession, user_id: UUID) -> list[RefreshToken]:
+        """Retorna las sesiones activas (no revocadas y no expiradas) del usuario."""
+        now = datetime.now(timezone.utc)
+        result = await db.execute(
+            select(RefreshToken)
+            .where(
+                RefreshToken.user_id == user_id,
+                RefreshToken.is_revoked == False,
+                RefreshToken.expires_at > now,
+            )
+            .order_by(RefreshToken.created_at.desc())
+        )
+        return result.scalars().all()
+
+    @staticmethod
+    async def revoke_session(
+        db: AsyncSession, session_id: UUID, user_id: UUID
+    ) -> None:
+        """Revoca una sesión específica del usuario."""
+        result = await db.execute(
+            select(RefreshToken).where(
+                RefreshToken.id == session_id,
+                RefreshToken.user_id == user_id,
+            )
+        )
+        token_record = result.scalar_one_or_none()
+        if not token_record:
+            raise LookupError("Sesión no encontrada")
+        token_record.is_revoked = True
 
     @staticmethod
     async def _get_user_by_phone(

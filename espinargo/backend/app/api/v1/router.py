@@ -14,7 +14,7 @@ Rutas finales:
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import admin, auth, packages, ratings, trips, users, ws
+from app.api.v1.endpoints import admin, auth, packages, ratings, trips, users
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -24,4 +24,3 @@ api_router.include_router(trips.router)
 api_router.include_router(packages.router)
 api_router.include_router(ratings.router)
 api_router.include_router(admin.router)
-api_router.include_router(ws.router)

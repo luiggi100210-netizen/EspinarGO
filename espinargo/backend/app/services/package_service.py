@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.package import Package, PackageSize, PackageStatus, PackageTracking
-from app.models.user import User
+from app.models.user import DriverStatus, User, UserRole
 from app.schemas.base import PaginationMeta
 from app.schemas.package import (
     PackageListResponse,
@@ -132,10 +132,14 @@ class PackageService:
     async def assign_package(
         db: AsyncSession, package_id: UUID, driver: User
     ) -> PackagePublic:
+        if driver.role == UserRole.DRIVER:
+            if not driver.driver_profile or driver.driver_profile.driver_status != DriverStatus.APPROVED:
+                raise PermissionError("Tu cuenta de conductor no está aprobada para tomar encomiendas")
+
         package = await db.get(Package, package_id)
 
         if not package:
-            raise ValueError("Encomienda no encontrada")
+            raise LookupError("Encomienda no encontrada")
         if package.status != PackageStatus.PENDING:
             raise ValueError("Esta encomienda ya tiene conductor asignado")
 
@@ -161,7 +165,7 @@ class PackageService:
         package = await db.get(Package, package_id)
 
         if not package:
-            raise ValueError("Encomienda no encontrada")
+            raise LookupError("Encomienda no encontrada")
         if package.driver_id != driver.id:
             raise PermissionError("No tienes acceso a esta encomienda")
 
@@ -195,7 +199,89 @@ class PackageService:
             package_id=package.id,
             status=new_status,
             description=data.description or status_descriptions.get(new_status, "Estado actualizado"),
+            updated_by=driver.id,
         ))
         await db.commit()
 
         return package_to_public(package)
+
+    @staticmethod
+    async def get_package(db: AsyncSession, package_id: UUID) -> Package:
+        """Retorna el paquete o lanza LookupError si no existe."""
+        package = await db.get(Package, package_id)
+        if not package:
+            raise LookupError("Encomienda no encontrada")
+        return package
+
+    @staticmethod
+    async def cancel_package(
+        db: AsyncSession, package_id: UUID, user: User
+    ) -> PackagePublic:
+        package = await db.get(Package, package_id)
+
+        if not package:
+            raise LookupError("Encomienda no encontrada")
+
+        if package.sender_id != user.id and user.role != UserRole.ADMIN:
+            raise PermissionError("No tienes acceso a esta encomienda")
+
+        cancellable = (PackageStatus.PENDING, PackageStatus.ASSIGNED)
+        if package.status not in cancellable:
+            raise ValueError(
+                f"No se puede cancelar una encomienda en estado '{package.status.value}'. "
+                "Solo se puede cancelar si está pendiente o asignada."
+            )
+
+        package.status = PackageStatus.CANCELLED
+        db.add(PackageTracking(
+            package_id=package.id,
+            status=PackageStatus.CANCELLED,
+            description="Envío cancelado por el remitente",
+            updated_by=user.id,
+        ))
+        await db.commit()
+
+        return package_to_public(package)
+
+    @staticmethod
+    async def get_driver_packages(
+        db: AsyncSession,
+        driver: User,
+        page: int,
+        per_page: int,
+    ) -> PackageListResponse:
+        """Encomiendas activas asignadas al conductor (ASSIGNED, PICKED_UP, IN_TRANSIT)."""
+        active_statuses = [
+            PackageStatus.ASSIGNED,
+            PackageStatus.PICKED_UP,
+            PackageStatus.IN_TRANSIT,
+        ]
+
+        total = (
+            await db.execute(
+                select(func.count())
+                .select_from(Package)
+                .where(
+                    Package.driver_id == driver.id,
+                    Package.status.in_(active_statuses),
+                )
+            )
+        ).scalar()
+
+        packages = (
+            await db.execute(
+                select(Package)
+                .where(
+                    Package.driver_id == driver.id,
+                    Package.status.in_(active_statuses),
+                )
+                .order_by(Package.created_at.desc())
+                .offset((page - 1) * per_page)
+                .limit(per_page)
+            )
+        ).scalars().all()
+
+        return PackageListResponse(
+            packages=[package_to_public(p) for p in packages],
+            meta=PaginationMeta.create(total=total, page=page, per_page=per_page),
+        )

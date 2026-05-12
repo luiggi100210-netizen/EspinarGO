@@ -16,6 +16,14 @@ from app.models.trip import Trip, TripStatus
 from app.models.user import User, UserRole, UserStatus
 from app.websockets.manager import manager
 
+
+def _parse_coord(value) -> float | None:
+    """Convierte lat/lng a float; retorna None si no es un número válido."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
 router = APIRouter(tags=["WebSocket"])
 
 
@@ -68,11 +76,15 @@ async def driver_ws(
             msg_type = data.get("type")
 
             if msg_type == "location":
+                lat = _parse_coord(data.get("lat"))
+                lng = _parse_coord(data.get("lng"))
                 async with AsyncSessionLocal() as db:
                     user_db = await db.get(User, user.id)
                     if user_db and user_db.driver_profile:
-                        user_db.driver_profile.current_lat = str(data.get("lat", ""))
-                        user_db.driver_profile.current_lng = str(data.get("lng", ""))
+                        if lat is not None:
+                            user_db.driver_profile.current_lat = str(lat)
+                        if lng is not None:
+                            user_db.driver_profile.current_lng = str(lng)
                     result = await db.execute(
                         select(Trip)
                         .where(
@@ -84,10 +96,10 @@ async def driver_ws(
                     active_trip = result.scalar_one_or_none()
                     await db.commit()
 
-                if active_trip:
+                if active_trip and lat is not None and lng is not None:
                     await manager.broadcast_to_trip(
                         active_trip.id,
-                        {"type": "driver_location", "lat": data.get("lat"), "lng": data.get("lng")},
+                        {"type": "driver_location", "lat": lat, "lng": lng},
                     )
 
             elif msg_type == "online":
@@ -98,6 +110,10 @@ async def driver_ws(
                         await db.commit()
 
     except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+    finally:
         manager.disconnect_driver(user.id)
         async with AsyncSessionLocal() as db:
             user_db = await db.get(User, user.id)
@@ -130,7 +146,12 @@ async def trip_ws(
     async with AsyncSessionLocal() as db:
         trip = await db.get(Trip, trip_id)
 
-    if not trip or (trip.passenger_id != user.id and trip.driver_id != user.id):
+    is_participant = (
+        trip.passenger_id == user.id
+        or trip.driver_id == user.id
+        or user.role == UserRole.ADMIN
+    )
+    if not trip or not is_participant:
         await websocket.close(code=4003, reason="Acceso denegado")
         return
 
@@ -140,4 +161,8 @@ async def trip_ws(
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+    finally:
         manager.disconnect_trip(trip_id, websocket)

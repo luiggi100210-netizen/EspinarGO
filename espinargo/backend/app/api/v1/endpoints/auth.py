@@ -6,7 +6,7 @@ Este archivo solo llama a AuthService y OTPService.
 No contiene lógica de negocio propia.
 """
 
-from datetime import datetime, timezone
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
@@ -26,6 +26,7 @@ from app.schemas.auth import (
     ResetPasswordRequest,
     SendOTPRequest,
     SendOTPResponse,
+    SessionOut,
     TokenResponse,
     VerifyOTPRequest,
     VerifyOTPResponse,
@@ -357,3 +358,40 @@ async def get_my_profile(
     Retorna los datos completos del usuario autenticado.
     """
     return UserProfile.model_validate(current_user)
+
+
+@router.get(
+    "/sessions",
+    response_model=list[SessionOut],
+    summary="Listar sesiones activas",
+)
+async def list_sessions(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Retorna todas las sesiones activas del usuario (dispositivos con sesión abierta).
+    """
+    sessions = await AuthService.get_sessions(db, current_user.id)
+    return [SessionOut.model_validate(s) for s in sessions]
+
+
+@router.delete(
+    "/sessions/{session_id}",
+    response_model=MessageResponse,
+    summary="Cerrar sesión en un dispositivo específico",
+)
+async def revoke_session(
+    session_id: UUID,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Cierra la sesión en un dispositivo específico revocando su refresh token.
+    """
+    try:
+        await AuthService.revoke_session(db, session_id, current_user.id)
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+    return MessageResponse(message="Sesión cerrada correctamente")

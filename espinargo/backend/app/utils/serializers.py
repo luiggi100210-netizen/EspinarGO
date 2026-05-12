@@ -61,7 +61,7 @@ def package_to_public(pkg: Package) -> PackagePublic:
         recipient_name=pkg.recipient_name,
         recipient_phone=pkg.recipient_phone,
         delivery_address=pkg.delivery_address,
-        size=pkg.size,
+        size=pkg.size.value,
         description=pkg.description,
         is_fragile=pkg.is_fragile,
         status=pkg.status.value,

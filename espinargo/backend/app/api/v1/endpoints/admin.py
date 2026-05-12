@@ -27,7 +27,9 @@ from app.schemas.admin import (
     AdminUserOut,
 )
 from app.schemas.base import MessageResponse, PaginationMeta
-from app.utils.serializers import driver_profile_to_public
+from app.schemas.package import PackageListResponse
+from app.schemas.trip import TripListResponse
+from app.utils.serializers import driver_profile_to_public, package_to_public, trip_to_public
 
 router = APIRouter(
     prefix="/admin",
@@ -89,6 +91,22 @@ async def list_users(
         users=[AdminUserOut.model_validate(u) for u in users],
         meta=PaginationMeta.create(total=total, page=page, per_page=per_page),
     )
+
+
+@router.get(
+    "/users/{user_id}",
+    response_model=AdminUserOut,
+    summary="Ver detalle de un usuario",
+)
+async def get_user(
+    user_id: UUID,
+    admin: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
+    return AdminUserOut.model_validate(user)
 
 
 @router.post(
@@ -202,6 +220,28 @@ async def list_drivers(
     )
 
 
+@router.get(
+    "/drivers/{driver_id}",
+    response_model=AdminDriverOut,
+    summary="Ver detalle de un conductor",
+)
+async def get_driver(
+    driver_id: UUID,
+    admin: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(DriverProfile).where(DriverProfile.user_id == driver_id)
+    )
+    dp = result.scalar_one_or_none()
+    if not dp:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Perfil de conductor no encontrado")
+    return AdminDriverOut(
+        user=AdminUserOut.model_validate(dp.user),
+        driver_profile=driver_profile_to_public(dp),
+    )
+
+
 @router.post(
     "/drivers/{driver_id}/review",
     response_model=MessageResponse,
@@ -221,10 +261,11 @@ async def review_driver(
     if not dp:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Perfil de conductor no encontrado")
 
-    if dp.driver_status != DriverStatus.UNDER_REVIEW:
+    reviewable = (DriverStatus.UNDER_REVIEW, DriverStatus.REJECTED, DriverStatus.SUSPENDED)
+    if dp.driver_status not in reviewable:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Solo se pueden revisar conductores en estado 'under_review'",
+            detail="Solo se pueden revisar conductores en estado 'under_review', 'rejected' o 'suspended'",
         )
 
     if data.action == "approve":
@@ -239,6 +280,109 @@ async def review_driver(
     dp.driver_status = DriverStatus.REJECTED
     dp.rejection_reason = data.rejection_reason
     return MessageResponse(message="Conductor rechazado")
+
+
+@router.post(
+    "/drivers/{driver_id}/suspend",
+    response_model=MessageResponse,
+    summary="Suspender privilegios de conducción",
+)
+async def suspend_driver(
+    driver_id: UUID,
+    admin: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Suspende el perfil de conductor sin banear la cuenta de usuario."""
+    result = await db.execute(
+        select(DriverProfile).where(DriverProfile.user_id == driver_id)
+    )
+    dp = result.scalar_one_or_none()
+    if not dp:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Perfil de conductor no encontrado")
+    if dp.driver_status == DriverStatus.SUSPENDED:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El conductor ya está suspendido")
+    dp.driver_status = DriverStatus.SUSPENDED
+    return MessageResponse(message="Perfil de conductor suspendido")
+
+
+@router.get(
+    "/trips",
+    response_model=TripListResponse,
+    summary="Listar todos los viajes",
+)
+async def list_trips(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    trip_status: Optional[str] = Query(default=None, alias="status", description="searching, negotiating, accepted, in_progress, completed, cancelled"),
+    admin: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    filters = []
+
+    if trip_status:
+        try:
+            filters.append(Trip.status == TripStatus(trip_status))
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Estado inválido: {trip_status}")
+
+    count_result = await db.execute(
+        select(func.count()).select_from(Trip).where(*filters)
+    )
+    total = count_result.scalar()
+
+    result = await db.execute(
+        select(Trip)
+        .where(*filters)
+        .order_by(Trip.created_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+    )
+    trips = result.scalars().all()
+
+    return TripListResponse(
+        trips=[trip_to_public(t) for t in trips],
+        meta=PaginationMeta.create(total=total, page=page, per_page=per_page),
+    )
+
+
+@router.get(
+    "/packages",
+    response_model=PackageListResponse,
+    summary="Listar todas las encomiendas",
+)
+async def list_packages(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    pkg_status: Optional[str] = Query(default=None, alias="status", description="pending, assigned, picked_up, in_transit, delivered, cancelled"),
+    admin: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    filters = []
+
+    if pkg_status:
+        try:
+            filters.append(Package.status == PackageStatus(pkg_status))
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Estado inválido: {pkg_status}")
+
+    count_result = await db.execute(
+        select(func.count()).select_from(Package).where(*filters)
+    )
+    total = count_result.scalar()
+
+    result = await db.execute(
+        select(Package)
+        .where(*filters)
+        .order_by(Package.created_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+    )
+    packages = result.scalars().all()
+
+    return PackageListResponse(
+        packages=[package_to_public(p) for p in packages],
+        meta=PaginationMeta.create(total=total, page=page, per_page=per_page),
+    )
 
 
 @router.get(

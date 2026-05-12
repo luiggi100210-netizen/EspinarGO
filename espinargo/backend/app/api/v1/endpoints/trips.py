@@ -80,22 +80,50 @@ async def get_active_trip(
 
 
 @router.get(
+    "/searching",
+    response_model=TripListResponse,
+    summary="Ver viajes disponibles para ofertar (conductor)",
+)
+async def get_searching_trips(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=50),
+    current_user: User = Depends(get_current_driver),
+    db: AsyncSession = Depends(get_db),
+):
+    """Lista los viajes en estado SEARCHING o NEGOTIATING para que el conductor haga ofertas."""
+    return await TripService.get_searching_trips(db, page, per_page)
+
+
+@router.get(
+    "/driver/active",
+    response_model=TripPublic | None,
+    summary="Ver mi viaje activo como conductor",
+)
+async def get_driver_active_trip(
+    current_user: User = Depends(get_current_driver),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retorna el viaje activo actual del conductor (ACCEPTED o IN_PROGRESS) si existe."""
+    return await TripService.get_driver_active_trip(db, current_user)
+
+
+@router.get(
     "/{trip_id}/offers",
     response_model=list[TripOfferPublic],
     summary="Ver las ofertas de conductores para mi viaje",
 )
 async def get_trip_offers(
     trip_id: UUID,
-    current_user: User = Depends(get_current_passenger),
+    current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Retorna las ofertas activas y no expiradas para este viaje."""
     try:
         return await TripService.get_trip_offers(db, trip_id, current_user)
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except PermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.post(
@@ -112,6 +140,10 @@ async def create_offer(
     """El conductor hace una contraoferta de precio al viaje."""
     try:
         return await TripService.create_offer(db, current_user, data)
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
@@ -130,6 +162,8 @@ async def accept_offer(
     """El pasajero acepta una oferta de precio del conductor."""
     try:
         return await TripService.accept_offer(db, trip_id, data, current_user)
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except PermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except ValueError as e:
@@ -149,6 +183,8 @@ async def start_trip(
     """El conductor inicia el viaje una vez que llegó al pasajero."""
     try:
         return await TripService.start_trip(db, trip_id, current_user)
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except PermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except ValueError as e:
@@ -168,6 +204,8 @@ async def complete_trip(
     """El conductor marca el viaje como completado."""
     try:
         return await TripService.complete_trip(db, trip_id, current_user)
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except PermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except ValueError as e:
@@ -185,10 +223,31 @@ async def cancel_trip(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Cancela un viaje (pasajero o conductor)."""
+    """Cancela un viaje (pasajero, conductor o admin)."""
     try:
         return await TripService.cancel_trip(db, trip_id, current_user, data)
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except PermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get(
+    "/{trip_id}",
+    response_model=TripPublic,
+    summary="Ver detalle de un viaje",
+)
+async def get_trip(
+    trip_id: UUID,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retorna el detalle de un viaje. Solo accesible por pasajero, conductor o admin."""
+    try:
+        return await TripService.get_trip(db, trip_id, current_user)
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))

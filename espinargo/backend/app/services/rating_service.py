@@ -6,7 +6,9 @@ Tras cada viaje completado, pasajero y conductor se califican mutuamente.
 Los endpoints solo orquestan HTTP; toda la lógica vive aquí.
 """
 
-from sqlalchemy import select
+from uuid import UUID
+
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.rating import Rating, RatingType
@@ -116,12 +118,22 @@ class RatingService:
         ]
 
     @staticmethod
-    async def get_rating_summary(db: AsyncSession, user_id: str) -> RatingSummary:
-        ratings = (
-            await db.execute(select(Rating).where(Rating.rated_id == user_id))
-        ).scalars().all()
+    async def get_rating_summary(db: AsyncSession, user_id: UUID) -> RatingSummary:
+        row = (
+            await db.execute(
+                select(
+                    func.count().label("total"),
+                    func.avg(Rating.score).label("average"),
+                    func.sum(case((Rating.score == 5, 1), else_=0)).label("five_stars"),
+                    func.sum(case((Rating.score == 4, 1), else_=0)).label("four_stars"),
+                    func.sum(case((Rating.score == 3, 1), else_=0)).label("three_stars"),
+                    func.sum(case((Rating.score == 2, 1), else_=0)).label("two_stars"),
+                    func.sum(case((Rating.score == 1, 1), else_=0)).label("one_star"),
+                ).where(Rating.rated_id == user_id)
+            )
+        ).one()
 
-        if not ratings:
+        if not row.total:
             return RatingSummary(
                 average_score=0.0,
                 total_ratings=0,
@@ -132,15 +144,41 @@ class RatingService:
                 one_star=0,
             )
 
-        total = len(ratings)
-        average = round(sum(r.score for r in ratings) / total, 1)
-
         return RatingSummary(
-            average_score=average,
-            total_ratings=total,
-            five_stars=sum(1 for r in ratings if r.score == 5),
-            four_stars=sum(1 for r in ratings if r.score == 4),
-            three_stars=sum(1 for r in ratings if r.score == 3),
-            two_stars=sum(1 for r in ratings if r.score == 2),
-            one_star=sum(1 for r in ratings if r.score == 1),
+            average_score=round(float(row.average), 1),
+            total_ratings=row.total,
+            five_stars=row.five_stars or 0,
+            four_stars=row.four_stars or 0,
+            three_stars=row.three_stars or 0,
+            two_stars=row.two_stars or 0,
+            one_star=row.one_star or 0,
         )
+
+    @staticmethod
+    async def get_given_ratings(
+        db: AsyncSession,
+        user: User,
+        page: int,
+        per_page: int,
+    ) -> list[RatingPublic]:
+        ratings = (
+            await db.execute(
+                select(Rating)
+                .where(Rating.rater_id == user.id)
+                .order_by(Rating.created_at.desc())
+                .offset((page - 1) * per_page)
+                .limit(per_page)
+            )
+        ).scalars().all()
+
+        return [
+            RatingPublic(
+                id=r.id,
+                score=r.score,
+                comment=r.comment,
+                rating_type=r.rating_type.value,
+                created_at=r.created_at,
+                rater=UserPublicOut.model_validate(user),
+            )
+            for r in ratings
+        ]

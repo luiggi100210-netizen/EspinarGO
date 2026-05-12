@@ -8,7 +8,7 @@ Contiene 2 modelos principales:
 La lógica de InDrive funciona así:
 1. El pasajero propone un precio
 2. Los conductores ven el viaje y pueden hacer contraofertas
-3. El pasajero elige哪位conductor acepta (la oferta aceptada se convierte en el precio final)
+3. El pasajero elige qué oferta acepta (la oferta aceptada se convierte en el precio final)
 """
 
 from datetime import datetime

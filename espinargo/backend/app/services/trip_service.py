@@ -14,7 +14,7 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.trip import PaymentMethod, Trip, TripCancelReason, TripOffer, TripStatus
-from app.models.user import User, UserRole
+from app.models.user import DriverStatus, User, UserRole
 from app.schemas.base import PaginationMeta
 from app.schemas.trip import (
     AcceptOfferRequest,
@@ -91,6 +91,64 @@ class TripService:
         )
 
     @staticmethod
+    async def get_searching_trips(
+        db: AsyncSession,
+        page: int,
+        per_page: int,
+    ) -> TripListResponse:
+        where = Trip.status.in_([TripStatus.SEARCHING, TripStatus.NEGOTIATING])
+
+        total = (
+            await db.execute(select(func.count()).select_from(Trip).where(where))
+        ).scalar()
+
+        trips = (
+            await db.execute(
+                select(Trip)
+                .where(where)
+                .order_by(Trip.created_at.desc())
+                .offset((page - 1) * per_page)
+                .limit(per_page)
+            )
+        ).scalars().all()
+
+        return TripListResponse(
+            trips=[trip_to_public(t) for t in trips],
+            meta=PaginationMeta.create(total=total, page=page, per_page=per_page),
+        )
+
+    @staticmethod
+    async def get_driver_active_trip(db: AsyncSession, driver: User) -> TripPublic | None:
+        result = await db.execute(
+            select(Trip)
+            .where(
+                Trip.driver_id == driver.id,
+                Trip.status.in_([TripStatus.ACCEPTED, TripStatus.IN_PROGRESS]),
+            )
+            .order_by(Trip.created_at.desc())
+            .limit(1)
+        )
+        trip = result.scalar_one_or_none()
+        return trip_to_public(trip) if trip else None
+
+    @staticmethod
+    async def get_trip(db: AsyncSession, trip_id: UUID, user: User) -> TripPublic:
+        trip = await db.get(Trip, trip_id)
+
+        if not trip:
+            raise LookupError("Viaje no encontrado")
+
+        is_participant = (
+            trip.passenger_id == user.id
+            or (trip.driver_id and trip.driver_id == user.id)
+            or user.role == UserRole.ADMIN
+        )
+        if not is_participant:
+            raise PermissionError("No tienes acceso a este viaje")
+
+        return trip_to_public(trip)
+
+    @staticmethod
     async def get_active_trip(db: AsyncSession, passenger: User) -> TripPublic | None:
         result = await db.execute(
             select(Trip)
@@ -113,13 +171,13 @@ class TripService:
     async def get_trip_offers(
         db: AsyncSession,
         trip_id: UUID,
-        passenger: User,
+        user: User,
     ) -> list[TripOfferPublic]:
         trip = await db.get(Trip, trip_id)
 
         if not trip:
-            raise ValueError("Viaje no encontrado")
-        if trip.passenger_id != passenger.id:
+            raise LookupError("Viaje no encontrado")
+        if trip.passenger_id != user.id and user.role != UserRole.ADMIN:
             raise PermissionError("No tienes acceso a este viaje")
 
         now = datetime.now(timezone.utc)
@@ -155,10 +213,14 @@ class TripService:
         driver: User,
         data: TripOfferRequest,
     ) -> TripOfferPublic:
+        if driver.role == UserRole.DRIVER:
+            if not driver.driver_profile or driver.driver_profile.driver_status != DriverStatus.APPROVED:
+                raise PermissionError("Tu cuenta de conductor no está aprobada para hacer ofertas")
+
         trip = await db.get(Trip, data.trip_id)
 
         if not trip:
-            raise ValueError("Viaje no encontrado")
+            raise LookupError("Viaje no encontrado")
         if trip.status not in (TripStatus.SEARCHING, TripStatus.NEGOTIATING):
             raise ValueError("Este viaje ya no acepta ofertas")
 
@@ -223,17 +285,20 @@ class TripService:
         trip = await db.get(Trip, trip_id)
 
         if not trip:
-            raise ValueError("Viaje no encontrado")
+            raise LookupError("Viaje no encontrado")
         if trip.passenger_id != passenger.id:
             raise PermissionError("No tienes acceso a este viaje")
+        if trip.status not in (TripStatus.SEARCHING, TripStatus.NEGOTIATING):
+            raise ValueError("Este viaje ya no acepta nuevas aceptaciones de oferta")
 
         offer = await db.get(TripOffer, data.offer_id)
 
         if not offer or offer.trip_id != trip_id:
-            raise ValueError("Oferta no encontrada")
+            raise LookupError("Oferta no encontrada")
 
         now = datetime.now(timezone.utc)
-        if offer.expires_at.astimezone(timezone.utc) < now:
+        expires_at = offer.expires_at if offer.expires_at.tzinfo else offer.expires_at.replace(tzinfo=timezone.utc)
+        if expires_at < now:
             raise ValueError("Esta oferta ya expiró")
 
         offer.is_accepted = True
@@ -256,7 +321,7 @@ class TripService:
         trip = await db.get(Trip, trip_id)
 
         if not trip:
-            raise ValueError("Viaje no encontrado")
+            raise LookupError("Viaje no encontrado")
         if trip.driver_id != driver.id:
             raise PermissionError("No tienes acceso a este viaje")
         if trip.status != TripStatus.ACCEPTED:
@@ -274,7 +339,7 @@ class TripService:
         trip = await db.get(Trip, trip_id)
 
         if not trip:
-            raise ValueError("Viaje no encontrado")
+            raise LookupError("Viaje no encontrado")
         if trip.driver_id != driver.id:
             raise PermissionError("No tienes acceso a este viaje")
         if trip.status != TripStatus.IN_PROGRESS:
@@ -301,21 +366,25 @@ class TripService:
         trip = await db.get(Trip, trip_id)
 
         if not trip:
-            raise ValueError("Viaje no encontrado")
+            raise LookupError("Viaje no encontrado")
 
         is_passenger = trip.passenger_id == user.id
         is_driver = trip.driver_id == user.id if trip.driver_id else False
+        is_admin = user.role == UserRole.ADMIN
 
-        if not is_passenger and not is_driver:
+        if not is_passenger and not is_driver and not is_admin:
             raise PermissionError("No tienes acceso a este viaje")
 
         if trip.status in (TripStatus.COMPLETED, TripStatus.CANCELLED):
             raise ValueError("El viaje ya está completado o cancelado")
 
         trip.status = TripStatus.CANCELLED
-        trip.cancel_reason = (
-            TripCancelReason.PASSENGER_CANCEL if is_passenger else TripCancelReason.DRIVER_CANCEL
-        )
+        if is_passenger:
+            trip.cancel_reason = TripCancelReason.PASSENGER_CANCEL
+        elif is_driver:
+            trip.cancel_reason = TripCancelReason.DRIVER_CANCEL
+        else:
+            trip.cancel_reason = TripCancelReason.PASSENGER_CANCEL
         trip.cancelled_by = user.id
         trip.cancelled_at = datetime.now(timezone.utc)
 

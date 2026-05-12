@@ -9,11 +9,6 @@ Este archivo une todo lo construido en los módulos anteriores:
 - Manejadores de errores globales
 """
 
-import sys
-import os
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -23,8 +18,9 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.v1.router import api_router
+from app.api.v1.endpoints.ws import router as ws_router
 from app.core.config import settings
-from app.core.database import Base, check_database_connection, engine
+from app.core.database import check_database_connection, engine
 from app.websockets.manager import manager
 
 # Importar todos los modelos para que SQLAlchemy los registre
@@ -133,6 +129,7 @@ Para soporte técnico: soporte@espinargo.com
 
     # Incluir router principal
     app.include_router(api_router)
+    app.include_router(ws_router)  # WebSocket en / (no bajo /api/v1)
 
     # Rutas base
     @app.get(

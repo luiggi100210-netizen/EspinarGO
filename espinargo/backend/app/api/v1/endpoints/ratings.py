@@ -6,6 +6,8 @@ Tras cada viaje completado, pasajero y conductor se califican.
 Rutas bajo /api/v1/ratings/
 """
 
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -60,12 +62,27 @@ async def get_received_ratings(
 
 
 @router.get(
+    "/given",
+    response_model=list[RatingPublic],
+    summary="Ver calificaciones que di",
+)
+async def get_given_ratings(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=50),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retorna las calificaciones que el usuario ha dado a otros."""
+    return await RatingService.get_given_ratings(db, current_user, page, per_page)
+
+
+@router.get(
     "/summary/{user_id}",
     response_model=RatingSummary,
     summary="Ver resumen de calificaciones de un usuario",
 )
 async def get_rating_summary(
-    user_id: str,
+    user_id: UUID,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):

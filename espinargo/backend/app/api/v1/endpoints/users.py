@@ -8,10 +8,12 @@ Rutas bajo /api/v1/users/
 """
 
 import asyncio
+from uuid import UUID
+
 import cloudinary
 import cloudinary.uploader
-from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -23,15 +25,16 @@ from app.middleware.auth import (
 from app.models.user import DriverProfile, DriverStatus, User, UserStatus
 from app.schemas.base import MessageResponse
 from app.schemas.user import (
+    DocumentStatusResponse,
     DriverProfilePublic,
     UpdateAvatarResponse,
+    UpdateOnlineStatusRequest,
     UpdateProfileRequest,
     UpdateVehicleRequest,
     UploadDocumentResponse,
     UserProfile,
 )
 from app.utils.serializers import driver_profile_to_public
-from sqlalchemy import select
 
 router = APIRouter(
     prefix="/users",
@@ -60,6 +63,21 @@ async def update_profile(
     """
     update_data = data.model_dump(exclude_unset=True)
 
+    if "email" in update_data and update_data["email"]:
+        existing = (
+            await db.execute(
+                select(User).where(
+                    User.email == update_data["email"],
+                    User.id != current_user.id,
+                )
+            )
+        ).scalar_one_or_none()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El correo electrónico ya está en uso",
+            )
+
     for field, value in update_data.items():
         setattr(current_user, field, value)
 
@@ -79,7 +97,7 @@ async def upload_avatar(
     """
     Sube una imagen como foto de perfil.
     """
-    if not file.content_type.startswith("image/"):
+    if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Solo se permiten archivos de imagen",
@@ -174,10 +192,17 @@ async def upload_document(
         )
 
     content_type = file.content_type
-    if not (content_type.startswith("image/") or content_type == "application/pdf"):
+    if not content_type or not (content_type.startswith("image/") or content_type == "application/pdf"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Solo se permiten imágenes o archivos PDF",
+        )
+
+    driver_profile = current_user.driver_profile
+    if not driver_profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No tienes perfil de conductor",
         )
 
     contents = await file.read()
@@ -198,7 +223,6 @@ async def upload_document(
         ),
     )
 
-    driver_profile = current_user.driver_profile
     field_name = DOCUMENT_TYPES[document_type]
     setattr(driver_profile, field_name, result["secure_url"])
 
@@ -207,7 +231,8 @@ async def upload_document(
         for doc in REQUIRED_DOCS
     }
 
-    if all(current_docs.values()) and driver_profile.driver_status == DriverStatus.PENDING_DOCS:
+    resubmittable = (DriverStatus.PENDING_DOCS, DriverStatus.REJECTED)
+    if all(current_docs.values()) and driver_profile.driver_status in resubmittable:
         driver_profile.driver_status = DriverStatus.UNDER_REVIEW
 
     return UploadDocumentResponse(
@@ -215,6 +240,69 @@ async def upload_document(
         document_type=document_type,
         url=result["secure_url"],
         driver_status=driver_profile.driver_status.value,
+    )
+
+
+@router.patch(
+    "/me/online",
+    response_model=MessageResponse,
+    summary="Activar o desactivar disponibilidad como conductor",
+)
+async def update_online_status(
+    data: UpdateOnlineStatusRequest,
+    current_user: User = Depends(get_current_driver),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    El conductor activa o desactiva su disponibilidad para recibir viajes.
+    """
+    driver_profile = current_user.driver_profile
+    if not driver_profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No tienes perfil de conductor",
+        )
+
+    if driver_profile.driver_status != DriverStatus.APPROVED:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tu cuenta de conductor no está aprobada",
+        )
+
+    driver_profile.is_online = data.is_online
+    estado = "en línea" if data.is_online else "fuera de línea"
+    return MessageResponse(message=f"Ahora estás {estado}")
+
+
+@router.get(
+    "/me/documents",
+    response_model=DocumentStatusResponse,
+    summary="Ver estado de documentos subidos",
+)
+async def get_my_documents(
+    current_user: User = Depends(get_current_driver),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Retorna el estado actual de los documentos del conductor.
+    """
+    driver_profile = current_user.driver_profile
+    if not driver_profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No tienes perfil de conductor",
+        )
+
+    return DocumentStatusResponse(
+        dni_front_url=driver_profile.dni_front_url,
+        dni_back_url=driver_profile.dni_back_url,
+        license_url=driver_profile.license_url,
+        soat_url=driver_profile.soat_url,
+        selfie_url=driver_profile.selfie_url,
+        property_card_url=driver_profile.property_card_url,
+        vehicle_photo_url=driver_profile.vehicle_photo_url,
+        driver_status=driver_profile.driver_status.value,
+        rejection_reason=driver_profile.rejection_reason,
     )
 
 
@@ -243,7 +331,7 @@ async def get_driver_profile(
             detail="Conductor no encontrado",
         )
 
-    if driver_profile.driver_status.value != "approved":
+    if driver_profile.driver_status != DriverStatus.APPROVED:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Conductor no encontrado",

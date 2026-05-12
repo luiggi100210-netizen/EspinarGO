@@ -5,9 +5,10 @@ Tras cada viaje, pasajero y conductor se califican.
 """
 
 from datetime import datetime
+from typing import Optional
+from uuid import UUID
 
 from pydantic import Field, field_validator
-from uuid import UUID
 
 from app.schemas.base import EspinarGoBaseModel, validate_score
 from app.schemas.user import UserPublicOut
@@ -25,7 +26,7 @@ class RatingRequest(EspinarGoBaseModel):
         le=5,
         description="Calificación de 1 a 5 estrellas",
     )
-    comment: str = Field(
+    comment: Optional[str] = Field(
         default=None,
         max_length=500,
         description="Comentario opcional sobre el viaje",
@@ -47,7 +48,7 @@ class RatingPublic(EspinarGoBaseModel):
     comment: str | None
     rating_type: str
     created_at: datetime
-    rater: UserPublicOut = Field(..., description="Quién calificó")
+    rater: Optional[UserPublicOut] = Field(None, description="Quién calificó")
 
 
 class RatingSummary(EspinarGoBaseModel):

@@ -5,10 +5,11 @@ Incluye registro, verificación OTP, login, gestión de tokens
 y recuperación de contraseña.
 """
 
+from datetime import datetime
 from typing import Optional
+from uuid import UUID
 
 from pydantic import Field, field_validator
-from uuid import UUID
 
 from app.schemas.base import (
     EspinarGoBaseModel,
@@ -219,6 +220,7 @@ class RefreshTokenResponse(EspinarGoBaseModel):
     """
 
     access_token: str = Field(..., description="Nuevo JWT válido por 30 minutos")
+    refresh_token: str = Field(..., description="Nuevo refresh token (token rotado)")
     token_type: str = Field(default="bearer")
     expires_in: int = Field(..., description="Segundos hasta expiración")
 
@@ -262,6 +264,19 @@ class ResetPasswordRequest(EspinarGoBaseModel):
     @classmethod
     def validate_pwd(cls, v: str) -> str:
         return validate_password_strength(v)
+
+
+class SessionOut(EspinarGoBaseModel):
+    """
+    Sesión activa del usuario (dispositivo con refresh token vigente).
+    """
+
+    id: UUID = Field(..., description="ID de la sesión")
+    device_name: Optional[str] = Field(None, description="Nombre del dispositivo")
+    device_os: Optional[str] = Field(None, description="Sistema operativo")
+    ip_address: Optional[str] = Field(None, description="IP de inicio de sesión")
+    created_at: datetime = Field(..., description="Fecha de inicio de sesión")
+    expires_at: datetime = Field(..., description="Fecha de expiración")
 
 
 from app.schemas.user import UserPublicOut
