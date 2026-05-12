@@ -26,7 +26,7 @@ class RatingService:
         trip = await db.get(Trip, data.trip_id)
 
         if not trip:
-            raise ValueError("Viaje no encontrado")
+            raise LookupError("Viaje no encontrado")
         if trip.status != TripStatus.COMPLETED:
             raise ValueError("Solo puedes calificar viajes completados")
 
@@ -38,6 +38,9 @@ class RatingService:
 
         rating_type = RatingType.PASSENGER_TO_DRIVER if is_passenger else RatingType.DRIVER_TO_PASSENGER
         rated_id = trip.driver_id if is_passenger else trip.passenger_id
+
+        if not rated_id:
+            raise ValueError("El viaje no tiene un participante válido para calificar")
 
         existing = (
             await db.execute(
@@ -119,6 +122,10 @@ class RatingService:
 
     @staticmethod
     async def get_rating_summary(db: AsyncSession, user_id: UUID) -> RatingSummary:
+        user = await db.get(User, user_id)
+        if not user:
+            raise LookupError("Usuario no encontrado")
+
         row = (
             await db.execute(
                 select(

@@ -70,20 +70,20 @@ class Rating(BaseModel, Base):
         doc="al qué viaje pertenece esta calificación",
     )
 
-    rater_id: Mapped[uuid4] = mapped_column(
+    rater_id: Mapped[uuid4 | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
-        nullable=False,
+        nullable=True,
         index=True,
-        doc="quien da la calificación",
+        doc="quien da la calificación (nullable para conservar rating si el usuario es eliminado)",
     )
 
-    rated_id: Mapped[uuid4] = mapped_column(
+    rated_id: Mapped[uuid4 | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
-        nullable=False,
+        nullable=True,
         index=True,
-        doc="quien recibe la calificación",
+        doc="quien recibe la calificación (nullable para conservar rating si el usuario es eliminado)",
     )
 
     rating_type: Mapped[RatingType] = mapped_column(
@@ -109,13 +109,13 @@ class Rating(BaseModel, Base):
         lazy="selectin",
     )
 
-    rater: Mapped["User"] = relationship(
+    rater: Mapped["User | None"] = relationship(
         "User",
         foreign_keys=[rater_id],
         lazy="selectin",
     )
 
-    rated: Mapped["User"] = relationship(
+    rated: Mapped["User | None"] = relationship(
         "User",
         foreign_keys=[rated_id],
         lazy="selectin",

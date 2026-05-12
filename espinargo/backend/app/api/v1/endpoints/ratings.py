@@ -40,6 +40,8 @@ async def create_rating(
     """
     try:
         return await RatingService.create_rating(db, current_user, data)
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except PermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except ValueError as e:
@@ -90,4 +92,7 @@ async def get_rating_summary(
     Retorna el resumen de calificaciones de un usuario.
     Incluye promedio, total y distribución por estrellas.
     """
-    return await RatingService.get_rating_summary(db, user_id)
+    try:
+        return await RatingService.get_rating_summary(db, user_id)
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
