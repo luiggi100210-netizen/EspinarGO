@@ -72,7 +72,10 @@ async def driver_ws(
 
     try:
         while True:
-            data = await websocket.receive_json()
+            try:
+                data = await websocket.receive_json()
+            except (ValueError, KeyError):
+                continue
             msg_type = data.get("type")
 
             if msg_type == "location":
@@ -146,12 +149,16 @@ async def trip_ws(
     async with AsyncSessionLocal() as db:
         trip = await db.get(Trip, trip_id)
 
+    if not trip:
+        await websocket.close(code=4004, reason="Viaje no encontrado")
+        return
+
     is_participant = (
         trip.passenger_id == user.id
         or trip.driver_id == user.id
         or user.role == UserRole.ADMIN
     )
-    if not trip or not is_participant:
+    if not is_participant:
         await websocket.close(code=4003, reason="Acceso denegado")
         return
 
