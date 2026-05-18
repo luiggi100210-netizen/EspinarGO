@@ -48,6 +48,25 @@ cloudinary.config(
 )
 
 
+@router.get(
+    "/me/driver-profile",
+    response_model=DriverProfilePublic,
+    summary="Ver mi perfil de conductor",
+)
+async def get_my_driver_profile(
+    current_user: User = Depends(get_current_driver),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retorna el perfil de conductor del usuario autenticado."""
+    driver_profile = current_user.driver_profile
+    if not driver_profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No tienes perfil de conductor",
+        )
+    return driver_profile_to_public(driver_profile)
+
+
 @router.patch(
     "/me",
     response_model=UserProfile,

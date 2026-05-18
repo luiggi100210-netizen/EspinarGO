@@ -170,3 +170,14 @@ class TripListResponse(EspinarGoBaseModel):
 
     trips: list[TripPublic]
     meta: PaginationMeta
+
+
+class DriverEarningsResponse(EspinarGoBaseModel):
+    """
+    Resumen de ganancias del conductor.
+    """
+
+    total_earnings: str
+    total_trips: int
+    this_week_earnings: str
+    this_month_earnings: str

@@ -16,40 +16,23 @@ class DriverRepository {
   Future<DriverProfileModel> getMyDriverProfile() async {
     try {
       final response = await _dioClient.get(ApiConstants.MY_DRIVER_PROFILE);
-      return DriverProfileModel.fromJson(response.data as Map<String, dynamic>);
+      return DriverProfileModel.fromJson(
+          response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw Exception(DioClient.parseError(e));
     }
   }
 
   /// Activa o desactiva el modo online.
-  Future<DriverProfileModel> setOnlineStatus(bool isOnline) async {
+  /// El backend devuelve MessageResponse — retornamos void.
+  Future<void> setOnlineStatus(bool isOnline) async {
     try {
-      final response = await _dioClient.patch(
+      await _dioClient.patch(
         ApiConstants.DRIVER_ONLINE_STATUS,
         data: {'is_online': isOnline},
       );
-      return DriverProfileModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw Exception(DioClient.parseError(e));
-    }
-  }
-
-  /// Actualiza la ubicación del conductor.
-  Future<void> updateDriverLocation({
-    required double lat,
-    required double lng,
-  }) async {
-    try {
-      await _dioClient.patch(
-        ApiConstants.DRIVER_LOCATION,
-        data: {
-          'current_lat': lat.toString(),
-          'current_lng': lng.toString(),
-        },
-      );
-    } catch (_) {
-      // Silencioso: no lanzar excepción si falla
     }
   }
 
@@ -73,10 +56,11 @@ class DriverRepository {
     }
   }
 
-  /// Inicia un viaje (conductor confirma que el pasajero está a bordo).
+  /// Inicia un viaje.
   Future<TripModel> startTrip(String tripId) async {
     try {
-      final response = await _dioClient.post(ApiConstants.startTrip(tripId));
+      final response =
+          await _dioClient.post(ApiConstants.startTrip(tripId));
       return TripModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw Exception(DioClient.parseError(e));
@@ -86,7 +70,8 @@ class DriverRepository {
   /// Completa un viaje.
   Future<TripModel> completeTrip(String tripId) async {
     try {
-      final response = await _dioClient.post(ApiConstants.completeTrip(tripId));
+      final response =
+          await _dioClient.post(ApiConstants.completeTrip(tripId));
       return TripModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw Exception(DioClient.parseError(e));
@@ -107,6 +92,7 @@ class DriverRepository {
   }
 
   /// Obtiene el historial de viajes del conductor.
+  /// Backend devuelve { "trips": [...], "meta": {...} }
   Future<List<TripModel>> getDriverTripsHistory({
     int page = 1,
     int perPage = 20,
@@ -116,8 +102,11 @@ class DriverRepository {
         '${ApiConstants.TRIPS}${ApiConstants.HISTORY}',
         queryParameters: {'page': page, 'per_page': perPage},
       );
-      final data = response.data as List<dynamic>;
-      return data.map((json) => TripModel.fromJson(json as Map<String, dynamic>)).toList();
+      final trips =
+          (response.data as Map<String, dynamic>)['trips'] as List<dynamic>;
+      return trips
+          .map((json) => TripModel.fromJson(json as Map<String, dynamic>))
+          .toList();
     } on DioException catch (e) {
       throw Exception(DioClient.parseError(e));
     }

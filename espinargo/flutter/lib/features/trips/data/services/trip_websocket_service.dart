@@ -1,113 +1,110 @@
 import 'dart:async';
+import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:socket_io_client/socket_io_client.dart' as io;
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/constants/storage_keys.dart';
 import '../../../../core/utils/logger.dart';
 
-/// Servicio de WebSocket para comunicación en tiempo real.
-/// Maneja la conexión con el backend para recibir ofertas y actualizaciones.
+/// WebSocket para seguimiento de viaje en tiempo real.
+/// Protocolo WS nativo compatible con FastAPI.
+/// Autenticación: primer mensaje {"type": "auth", "token": "..."}
 class TripWebSocketService {
-  io.Socket? _socket;
+  WebSocketChannel? _channel;
+  StreamSubscription? _subscription;
   bool _isConnected = false;
 
-  // Stream controllers
-  final _newOfferController = StreamController<Map<String, dynamic>>.broadcast();
-  final _tripUpdatedController = StreamController<Map<String, dynamic>>.broadcast();
-  final _driverLocationController = StreamController<Map<String, dynamic>>.broadcast();
-  final _driverArrivedController = StreamController<void>.broadcast();
+  final _newOfferController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _tripUpdatedController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _driverLocationController =
+      StreamController<Map<String, dynamic>>.broadcast();
   final _tripStartedController = StreamController<void>.broadcast();
   final _tripCompletedController = StreamController<void>.broadcast();
 
-  // Streams públicos
   Stream<Map<String, dynamic>> get onNewOffer => _newOfferController.stream;
-  Stream<Map<String, dynamic>> get onTripUpdated => _tripUpdatedController.stream;
-  Stream<Map<String, dynamic>> get onDriverLocation => _driverLocationController.stream;
-  Stream<void> get onDriverArrived => _driverArrivedController.stream;
+  Stream<Map<String, dynamic>> get onTripUpdated =>
+      _tripUpdatedController.stream;
+  Stream<Map<String, dynamic>> get onDriverLocation =>
+      _driverLocationController.stream;
   Stream<void> get onTripStarted => _tripStartedController.stream;
   Stream<void> get onTripCompleted => _tripCompletedController.stream;
 
   bool get isConnected => _isConnected;
 
-  /// Conecta al WebSocket del servidor.
   Future<void> connect(String tripId) async {
     const secureStorage = FlutterSecureStorage();
-    final token = await secureStorage.read(key: StorageKeys.ACCESS_TOKEN) ?? '';
+    final token =
+        await secureStorage.read(key: StorageKeys.ACCESS_TOKEN) ?? '';
 
-    _socket = io.io(
-      ApiConstants.WS_URL,
-      io.OptionBuilder()
-          .setTransports(['websocket'])
-          .enableAutoConnect()
-          .setAuth({'token': token})
-          .build(),
-    );
+    try {
+      _channel = WebSocketChannel.connect(
+        Uri.parse(ApiConstants.wsTrip(tripId)),
+      );
 
-    _socket?.onConnect((_) {
+      // Handshake de autenticación como primer mensaje
+      _channel!.sink.add(jsonEncode({'type': 'auth', 'token': token}));
       _isConnected = true;
-      AppLogger.success('WebSocket conectado para viaje $tripId');
+      AppLogger.success('Trip WebSocket conectado para viaje $tripId');
 
-      // Unirse a la sala del viaje
-      _socket?.emit('join_trip', {'trip_id': tripId});
-    });
-
-    _socket?.onDisconnect((_) {
+      _subscription = _channel!.stream.listen(
+        _handleMessage,
+        onDone: () {
+          _isConnected = false;
+          AppLogger.warning('Trip WebSocket desconectado');
+        },
+        onError: (error) {
+          AppLogger.error('Trip WebSocket error', error: error);
+          _isConnected = false;
+        },
+        cancelOnError: false,
+      );
+    } catch (e) {
+      AppLogger.error('Trip WebSocket fallo de conexión', error: e);
       _isConnected = false;
-      AppLogger.warning('WebSocket desconectado');
-    });
-
-    _socket?.onError((error) {
-      AppLogger.error('WebSocket error', error: error);
-    });
-
-    // Escuchar eventos del servidor
-    _socket?.on('new_offer', (data) {
-      AppLogger.info('Nueva oferta recibida');
-      _newOfferController.add(Map<String, dynamic>.from(data as Map));
-    });
-
-    _socket?.on('trip_updated', (data) {
-      _tripUpdatedController.add(Map<String, dynamic>.from(data as Map));
-    });
-
-    _socket?.on('driver_location', (data) {
-      _driverLocationController.add(Map<String, dynamic>.from(data as Map));
-    });
-
-    _socket?.on('driver_arrived', (_) {
-      AppLogger.info('Conductor llegó al origen');
-      _driverArrivedController.add(null);
-    });
-
-    _socket?.on('trip_started', (_) {
-      AppLogger.info('Viaje iniciado');
-      _tripStartedController.add(null);
-    });
-
-    _socket?.on('trip_completed', (_) {
-      AppLogger.info('Viaje completado');
-      _tripCompletedController.add(null);
-    });
+    }
   }
 
-  /// Desconecta del WebSocket.
+  void _handleMessage(dynamic raw) {
+    try {
+      final data = jsonDecode(raw as String) as Map<String, dynamic>;
+      final type = data['type'] as String?;
+
+      switch (type) {
+        case 'new_offer':
+          AppLogger.info('Nueva oferta recibida');
+          _newOfferController.add(data);
+        case 'trip_update':
+          _tripUpdatedController.add(data);
+          final status = data['status'] as String?;
+          if (status == 'in_progress') {
+            _tripStartedController.add(null);
+          } else if (status == 'completed') {
+            _tripCompletedController.add(null);
+          }
+        case 'driver_location':
+          _driverLocationController.add(data);
+      }
+    } catch (e) {
+      AppLogger.error('Error procesando mensaje WS viaje', error: e);
+    }
+  }
+
   void disconnect() {
-    _socket?.disconnect();
-    _socket?.dispose();
-    _socket = null;
+    _subscription?.cancel();
+    _channel?.sink.close();
+    _channel = null;
     _isConnected = false;
   }
 
-  /// Libera todos los recursos.
   void dispose() {
     disconnect();
     _newOfferController.close();
     _tripUpdatedController.close();
     _driverLocationController.close();
-    _driverArrivedController.close();
     _tripStartedController.close();
     _tripCompletedController.close();
   }

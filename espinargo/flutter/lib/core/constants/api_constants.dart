@@ -1,13 +1,19 @@
-/// URLs y rutas de la API del backend.
-/// Si cambia la URL base, solo se cambia aquí.
-class ApiConstants {
-  // En desarrollo: 10.0.2.2 es localhost del emulador Android
-  // En iOS usar: http://localhost:8000
-  // En producción usar la URL de Railway
-  static const String BASE_URL = "http://10.0.2.2:8000";
+import 'package:flutter/foundation.dart';
 
-  // URL de WebSocket para tiempo real
-  static const String WS_URL = "http://10.0.2.2:8000";
+/// URLs y rutas de la API del backend.
+/// La URL base se selecciona automáticamente según el entorno.
+class ApiConstants {
+  // URL base HTTP
+  static const String _devUrl = "http://10.0.2.2:8000";
+  static const String _prodUrl = "https://espinargo-api.up.railway.app";
+
+  static String get BASE_URL => kReleaseMode ? _prodUrl : _devUrl;
+
+  // URL WebSocket (ws:// en dev, wss:// en prod)
+  static String get WS_URL =>
+      kReleaseMode
+          ? "wss://espinargo-api.up.railway.app"
+          : "ws://10.0.2.2:8000";
 
   static const String API_VERSION = "/api/v1";
 
@@ -32,15 +38,12 @@ class ApiConstants {
   static const String CHANGE_PASSWORD = "/change-password";
 
   // Endpoints de TRIPS
-  static const String CREATE = "";
   static const String ACTIVE = "/active";
   static const String HISTORY = "/history";
-  static const String OFFER = "/offer";
 
-  // Endpoints del conductor (perfil propio)
+  // Endpoints del conductor
   static const String MY_DRIVER_PROFILE = '/api/v1/users/me/driver-profile';
-  static const String DRIVER_ONLINE_STATUS = '/api/v1/users/me/driver-profile/online';
-  static const String DRIVER_LOCATION = '/api/v1/users/me/driver-profile/location';
+  static const String DRIVER_ONLINE_STATUS = '/api/v1/users/me/online';
   static const String DRIVER_EARNINGS = '/api/v1/trips/driver/earnings';
 
   // Helpers para construir URLs
@@ -53,4 +56,6 @@ class ApiConstants {
   static String cancelTrip(String id) => "/api/v1/trips/$id/cancel";
   static String trackPackage(String code) => "/api/v1/packages/track/$code";
   static String driverProfile(String id) => "/api/v1/users/drivers/$id";
+  static String wsDriver() => "${WS_URL}/ws/driver";
+  static String wsTrip(String tripId) => "${WS_URL}/ws/trips/$tripId";
 }

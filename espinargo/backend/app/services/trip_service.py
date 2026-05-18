@@ -8,6 +8,7 @@ Los endpoints solo orquestan HTTP; toda la lógica vive aquí.
 """
 
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import and_, func, select
@@ -18,6 +19,7 @@ from app.models.user import DriverStatus, User, UserRole
 from app.schemas.base import PaginationMeta
 from app.schemas.trip import (
     AcceptOfferRequest,
+    DriverEarningsResponse,
     TripListResponse,
     TripOfferPublic,
     TripOfferRequest,
@@ -398,3 +400,43 @@ class TripService:
 
         await manager.broadcast_to_trip(trip_id, {"type": "trip_update", "status": "cancelled"})
         return trip_to_public(trip)
+
+    @staticmethod
+    async def get_driver_earnings(db: AsyncSession, driver: User) -> DriverEarningsResponse:
+        now = datetime.now(timezone.utc)
+        week_start = now - timedelta(days=now.weekday())
+        month_start = now.replace(day=1)
+
+        rows = (
+            await db.execute(
+                select(Trip.final_price, Trip.completed_at).where(
+                    Trip.driver_id == driver.id,
+                    Trip.status == TripStatus.COMPLETED,
+                    Trip.final_price.isnot(None),
+                )
+            )
+        ).all()
+
+        total = Decimal("0")
+        week = Decimal("0")
+        month = Decimal("0")
+
+        for price_str, completed_at in rows:
+            try:
+                amount = Decimal(price_str)
+            except Exception:
+                continue
+            total += amount
+            if completed_at:
+                completed_utc = completed_at if completed_at.tzinfo else completed_at.replace(tzinfo=timezone.utc)
+                if completed_utc >= week_start.replace(hour=0, minute=0, second=0, microsecond=0):
+                    week += amount
+                if completed_utc >= month_start.replace(hour=0, minute=0, second=0, microsecond=0):
+                    month += amount
+
+        return DriverEarningsResponse(
+            total_earnings=f"{total:.2f}",
+            total_trips=len(rows),
+            this_week_earnings=f"{week:.2f}",
+            this_month_earnings=f"{month:.2f}",
+        )

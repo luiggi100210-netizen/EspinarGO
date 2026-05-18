@@ -27,11 +27,11 @@ class TripRepository {
         ApiConstants.TRIPS,
         data: {
           'origin_address': originAddress,
-          'origin_lat': originLat,
-          'origin_lng': originLng,
+          'origin_lat': originLat.toString(),
+          'origin_lng': originLng.toString(),
           'dest_address': destAddress,
-          'dest_lat': destLat,
-          'dest_lng': destLng,
+          'dest_lat': destLat.toString(),
+          'dest_lng': destLng.toString(),
           'proposed_price': proposedPrice,
           'payment_method': paymentMethod,
         },
@@ -45,12 +45,11 @@ class TripRepository {
   /// Obtiene el viaje activo del usuario.
   Future<TripModel?> getActiveTrip() async {
     try {
-      final response = await _dioClient.get('${ApiConstants.TRIPS}/active');
+      final response =
+          await _dioClient.get('${ApiConstants.TRIPS}/active');
       return TripModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      if (e.response?.statusCode == 404) {
-        return null;
-      }
+      if (e.response?.statusCode == 404) return null;
       throw Exception(DioClient.parseError(e));
     }
   }
@@ -58,12 +57,12 @@ class TripRepository {
   /// Obtiene las ofertas de un viaje.
   Future<List<TripOfferModel>> getTripOffers(String tripId) async {
     try {
-      final response = await _dioClient.get(
-        ApiConstants.tripOffers(tripId),
-      );
+      final response =
+          await _dioClient.get(ApiConstants.tripOffers(tripId));
       final data = response.data as List<dynamic>;
       return data
-          .map((json) => TripOfferModel.fromJson(json as Map<String, dynamic>))
+          .map((json) =>
+              TripOfferModel.fromJson(json as Map<String, dynamic>))
           .toList();
     } on DioException catch (e) {
       throw Exception(DioClient.parseError(e));
@@ -100,6 +99,7 @@ class TripRepository {
   }
 
   /// Obtiene el historial de viajes.
+  /// Backend devuelve { "trips": [...], "meta": {...} }
   Future<List<TripModel>> getTripHistory({
     int page = 1,
     int perPage = 20,
@@ -109,9 +109,11 @@ class TripRepository {
         '${ApiConstants.TRIPS}/history',
         queryParameters: {'page': page, 'per_page': perPage},
       );
-      final data = response.data as List<dynamic>;
-      return data
-          .map((json) => TripModel.fromJson(json as Map<String, dynamic>))
+      final trips =
+          (response.data as Map<String, dynamic>)['trips'] as List<dynamic>;
+      return trips
+          .map((json) =>
+              TripModel.fromJson(json as Map<String, dynamic>))
           .toList();
     } on DioException catch (e) {
       throw Exception(DioClient.parseError(e));
@@ -121,11 +123,11 @@ class TripRepository {
   /// Obtiene un viaje por ID.
   Future<TripModel> getTripById(String tripId) async {
     try {
-      final response = await _dioClient.get(ApiConstants.tripById(tripId));
+      final response =
+          await _dioClient.get(ApiConstants.tripById(tripId));
       return TripModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw Exception(DioClient.parseError(e));
     }
   }
-
 }

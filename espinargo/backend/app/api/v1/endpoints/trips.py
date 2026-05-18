@@ -21,6 +21,7 @@ from app.middleware.auth import (
 from app.models.user import User
 from app.schemas.trip import (
     AcceptOfferRequest,
+    DriverEarningsResponse,
     TripListResponse,
     TripOfferPublic,
     TripOfferRequest,
@@ -77,6 +78,19 @@ async def get_active_trip(
 ):
     """Retorna el viaje activo actual del pasajero si existe."""
     return await TripService.get_active_trip(db, current_user)
+
+
+@router.get(
+    "/driver/earnings",
+    response_model=DriverEarningsResponse,
+    summary="Ver mis ganancias como conductor",
+)
+async def get_driver_earnings(
+    current_user: User = Depends(get_current_driver),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retorna el resumen de ganancias totales, semanales y mensuales del conductor."""
+    return await TripService.get_driver_earnings(db, current_user)
 
 
 @router.get(
