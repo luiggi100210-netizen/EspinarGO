@@ -1,3 +1,4 @@
+import 'package:firebase_messaging/firebase_messaging.dart' as firebase_messaging;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -155,6 +156,10 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       );
 
       state = AsyncValue.data(AuthState.authenticated(tokenResponse.user));
+
+      // Registrar token FCM en background (no bloquea el login)
+      _registerFcmToken(repository);
+
       return true;
     } catch (e) {
       state = AsyncValue.error(
@@ -162,6 +167,20 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
         StackTrace.current,
       );
       return false;
+    }
+  }
+
+  /// Obtiene y envía el token FCM al backend.
+  Future<void> _registerFcmToken(AuthRepository repository) async {
+    try {
+      final messaging = firebase_messaging.FirebaseMessaging.instance;
+      await messaging.requestPermission(alert: true, sound: true, badge: true);
+      final token = await messaging.getToken();
+      if (token != null) {
+        await repository.updateDeviceToken(token);
+      }
+    } catch (_) {
+      // No crítico: la app funciona sin push notifications
     }
   }
 

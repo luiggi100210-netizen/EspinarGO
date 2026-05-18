@@ -194,3 +194,11 @@ class UpdateOnlineStatusRequest(EspinarGoBaseModel):
     """
 
     is_online: bool = Field(..., description="True para activarse, False para desactivarse")
+
+
+class UpdateDeviceTokenRequest(EspinarGoBaseModel):
+    """
+    Token FCM del dispositivo para recibir push notifications.
+    """
+
+    device_token: str = Field(..., max_length=500, description="Token FCM del dispositivo")

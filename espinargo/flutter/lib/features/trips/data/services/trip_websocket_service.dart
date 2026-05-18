@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -15,6 +16,10 @@ class TripWebSocketService {
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
   bool _isConnected = false;
+  bool _disposed = false;
+  int _retryCount = 0;
+  String? _currentTripId;
+  static const int _maxRetries = 6;
 
   final _newOfferController =
       StreamController<Map<String, dynamic>>.broadcast();
@@ -36,6 +41,7 @@ class TripWebSocketService {
   bool get isConnected => _isConnected;
 
   Future<void> connect(String tripId) async {
+    _currentTripId = tripId;
     const secureStorage = FlutterSecureStorage();
     final token =
         await secureStorage.read(key: StorageKeys.ACCESS_TOKEN) ?? '';
@@ -48,6 +54,7 @@ class TripWebSocketService {
       // Handshake de autenticación como primer mensaje
       _channel!.sink.add(jsonEncode({'type': 'auth', 'token': token}));
       _isConnected = true;
+      _retryCount = 0;
       AppLogger.success('Trip WebSocket conectado para viaje $tripId');
 
       _subscription = _channel!.stream.listen(
@@ -55,17 +62,30 @@ class TripWebSocketService {
         onDone: () {
           _isConnected = false;
           AppLogger.warning('Trip WebSocket desconectado');
+          _scheduleReconnect();
         },
         onError: (error) {
           AppLogger.error('Trip WebSocket error', error: error);
           _isConnected = false;
+          _scheduleReconnect();
         },
         cancelOnError: false,
       );
     } catch (e) {
       AppLogger.error('Trip WebSocket fallo de conexión', error: e);
       _isConnected = false;
+      _scheduleReconnect();
     }
+  }
+
+  void _scheduleReconnect() {
+    if (_disposed || _retryCount >= _maxRetries || _currentTripId == null) return;
+    final delay = Duration(seconds: pow(2, _retryCount).toInt().clamp(1, 60));
+    _retryCount++;
+    AppLogger.info('Reconectando Trip WS en ${delay.inSeconds}s (intento $_retryCount/$_maxRetries)');
+    Future.delayed(delay, () {
+      if (!_disposed && _currentTripId != null) connect(_currentTripId!);
+    });
   }
 
   void _handleMessage(dynamic raw) {
@@ -94,6 +114,7 @@ class TripWebSocketService {
   }
 
   void disconnect() {
+    _disposed = true;
     _subscription?.cancel();
     _channel?.sink.close();
     _channel = null;

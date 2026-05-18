@@ -45,6 +45,7 @@ class ApiConstants {
   static const String MY_DRIVER_PROFILE = '/api/v1/users/me/driver-profile';
   static const String DRIVER_ONLINE_STATUS = '/api/v1/users/me/online';
   static const String DRIVER_EARNINGS = '/api/v1/trips/driver/earnings';
+  static const String DEVICE_TOKEN = '/api/v1/users/me/device-token';
 
   // Helpers para construir URLs
   static String tripById(String id) => "/api/v1/trips/$id";

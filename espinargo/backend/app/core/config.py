@@ -90,6 +90,11 @@ class Settings(BaseSettings):
     FACEBOOK_APP_SECRET: str = ""
 
     # =====================================================================
+    # FIREBASE - Push notifications (opcional)
+    # =====================================================================
+    FIREBASE_CREDENTIALS_JSON: str = ""
+
+    # =====================================================================
     # SENTRY - Configuración de monitoreo de errores (opcional)
     # =====================================================================
     SENTRY_DSN: str = ""

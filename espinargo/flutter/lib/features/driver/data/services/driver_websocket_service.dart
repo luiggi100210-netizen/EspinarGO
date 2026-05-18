@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -15,6 +16,9 @@ class DriverWebSocketService {
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
   bool _isConnected = false;
+  bool _disposed = false;
+  int _retryCount = 0;
+  static const int _maxRetries = 6;
 
   final _newTripRequestController =
       StreamController<Map<String, dynamic>>.broadcast();
@@ -43,12 +47,14 @@ class DriverWebSocketService {
       _isConnected = true;
       AppLogger.success('Driver WebSocket conectado');
 
+      _retryCount = 0; // reset en conexión exitosa
       _subscription = _channel!.stream.listen(
         _handleMessage,
         onDone: _onDisconnected,
         onError: (error) {
           AppLogger.error('Driver WebSocket error', error: error);
           _isConnected = false;
+          _scheduleReconnect();
         },
         cancelOnError: false,
       );
@@ -83,6 +89,17 @@ class DriverWebSocketService {
   void _onDisconnected() {
     _isConnected = false;
     AppLogger.warning('Driver WebSocket desconectado');
+    _scheduleReconnect();
+  }
+
+  void _scheduleReconnect() {
+    if (_disposed || _retryCount >= _maxRetries) return;
+    final delay = Duration(seconds: pow(2, _retryCount).toInt().clamp(1, 60));
+    _retryCount++;
+    AppLogger.info('Reconectando WebSocket en ${delay.inSeconds}s (intento $_retryCount/$_maxRetries)');
+    Future.delayed(delay, () {
+      if (!_disposed) connect();
+    });
   }
 
   void updateLocation(double lat, double lng) {
@@ -102,6 +119,7 @@ class DriverWebSocketService {
   }
 
   void disconnect() {
+    _disposed = true;
     _subscription?.cancel();
     _channel?.sink.close();
     _channel = null;

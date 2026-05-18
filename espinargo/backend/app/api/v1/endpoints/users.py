@@ -28,6 +28,7 @@ from app.schemas.user import (
     DocumentStatusResponse,
     DriverProfilePublic,
     UpdateAvatarResponse,
+    UpdateDeviceTokenRequest,
     UpdateOnlineStatusRequest,
     UpdateProfileRequest,
     UpdateVehicleRequest,
@@ -346,6 +347,22 @@ async def get_my_documents(
         driver_status=driver_profile.driver_status.value,
         rejection_reason=driver_profile.rejection_reason,
     )
+
+
+@router.patch(
+    "/me/device-token",
+    response_model=MessageResponse,
+    summary="Registrar token FCM para notificaciones push",
+)
+async def update_device_token(
+    data: UpdateDeviceTokenRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Guarda el token FCM del dispositivo para recibir notificaciones push."""
+    current_user.device_token = data.device_token
+    await db.commit()
+    return MessageResponse(message="Token de dispositivo actualizado")
 
 
 @router.get(

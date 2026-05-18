@@ -14,8 +14,10 @@ from uuid import UUID
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy.orm import selectinload
+
 from app.models.trip import PaymentMethod, Trip, TripCancelReason, TripOffer, TripStatus
-from app.models.user import DriverStatus, User, UserRole
+from app.models.user import DriverProfile, DriverStatus, User, UserRole
 from app.schemas.base import PaginationMeta
 from app.schemas.trip import (
     AcceptOfferRequest,
@@ -28,6 +30,7 @@ from app.schemas.trip import (
     UpdateTripStatusRequest,
 )
 from app.schemas.user import UserPublicOut
+from app.services.notification_service import send_push, send_push_to_many
 from app.utils.serializers import driver_profile_to_public, trip_to_public
 from app.websockets.manager import manager
 
@@ -55,6 +58,33 @@ class TripService:
             "type": "new_trip",
             "trip": result.model_dump(mode="json"),
         })
+
+        # Push a conductores aprobados y online con token FCM
+        driver_tokens_result = await db.execute(
+            select(DriverProfile.user_id)
+            .join(User, User.id == DriverProfile.user_id)
+            .where(
+                DriverProfile.driver_status == DriverStatus.APPROVED,
+                DriverProfile.is_online == True,
+                User.device_token.isnot(None),
+            )
+        )
+        tokens = [
+            row[0] for row in driver_tokens_result.all()
+            if row[0] != passenger.id
+        ]
+        if tokens:
+            token_rows = await db.execute(
+                select(User.device_token).where(User.id.in_(tokens))
+            )
+            device_tokens = [r[0] for r in token_rows.all() if r[0]]
+            await send_push_to_many(
+                device_tokens,
+                title="Nuevo viaje disponible",
+                body=f"{data.origin_address} → {data.dest_address} · S/{data.proposed_price}",
+                data={"type": "new_trip", "trip_id": str(trip.id)},
+            )
+
         return result
 
     @staticmethod
@@ -321,6 +351,16 @@ class TripService:
             offer.driver_id,
             {"type": "offer_accepted", "trip_id": str(trip_id)},
         )
+
+        # Push al conductor si no está conectado por WS
+        driver = await db.get(User, offer.driver_id)
+        if driver and driver.device_token:
+            await send_push(
+                driver.device_token,
+                title="¡Tu oferta fue aceptada!",
+                body=f"{trip.origin_address} → {trip.dest_address}",
+                data={"type": "offer_accepted", "trip_id": str(trip_id)},
+            )
 
         return trip_to_public(trip)
 

@@ -217,4 +217,14 @@ class AuthRepository {
     };
   }
 
+  /// Registra el token FCM del dispositivo en el backend.
+  /// Falla silenciosamente para no interrumpir el flujo de login.
+  Future<void> updateDeviceToken(String token) async {
+    try {
+      await _dioClient.patch(
+        ApiConstants.DEVICE_TOKEN,
+        data: {'device_token': token},
+      );
+    } catch (_) {}
+  }
 }
