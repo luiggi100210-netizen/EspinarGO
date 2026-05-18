@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "807273094072",
+    "project_id": "yauri-taxi",
+    "storage_bucket": "yauri-taxi.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:807273094072:android:a5142b6ec5afceca328d4d",
+        "android_client_info": {
+          "package_name": "com.yauritaxi.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDC1uWQl977SR9PljHlpVq6Z5vH1N6E9ug"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

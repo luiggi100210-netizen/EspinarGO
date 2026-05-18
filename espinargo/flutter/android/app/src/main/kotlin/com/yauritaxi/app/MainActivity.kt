@@ -1,4 +1,4 @@
-package com.espinargo.app
+package com.yauritaxi.app
 
 import io.flutter.embedding.android.FlutterActivity
 
