@@ -61,8 +61,7 @@ desktop.ini
 *.log
 logs/
 
-# Alembic
-versions/
+# Alembic (solo ignorar alembic.ini local, las versiones deben estar en Git)
 alembic.ini
 
 # Node (si se usa para frontend)
