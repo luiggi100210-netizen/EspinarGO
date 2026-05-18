@@ -13,11 +13,25 @@ import '../widgets/driver_stats_row.dart';
 import '../widgets/make_offer_sheet.dart';
 
 /// Pantalla principal del conductor.
-class DriverDashboardScreen extends ConsumerWidget {
+class DriverDashboardScreen extends ConsumerStatefulWidget {
   const DriverDashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DriverDashboardScreen> createState() =>
+      _DriverDashboardScreenState();
+}
+
+class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<AsyncValue<DriverState>>(driverProvider, (previous, next) {
+      final status = next.valueOrNull?.flowStatus;
+      if (status == DriverFlowStatus.offerAccepted ||
+          status == DriverFlowStatus.passengerOnboard) {
+        context.go('/driver/trip-active');
+      }
+    });
+
     final driverState = ref.watch(driverProvider).valueOrNull;
 
     if (driverState == null) {
@@ -142,7 +156,6 @@ class DriverDashboardScreen extends ConsumerWidget {
                             request: request,
                             onMakeOffer: () => _showMakeOfferSheet(
                               context,
-                              ref,
                               request,
                             ),
                             onReject: () {
@@ -165,7 +178,6 @@ class DriverDashboardScreen extends ConsumerWidget {
 
   void _showMakeOfferSheet(
     BuildContext context,
-    WidgetRef ref,
     Map<String, dynamic> request,
   ) {
     final price = double.tryParse(request['proposed_price']?.toString() ?? '0') ?? 0;

@@ -1,6 +1,7 @@
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../../core/network/dio_client.dart';
+import 'location_service.dart';
 import '../../../../core/utils/logger.dart';
 import '../models/place_model.dart';
 import '../models/route_model.dart';
@@ -156,80 +157,5 @@ class MapsService {
       AppLogger.error('Error reverse geocoding', error: e);
       return null;
     }
-  }
-}
-
-/// Servicio de ubicación simple para cálculo de distancias.
-class LocationService {
-  static double calculateDistance(LatLng origin, LatLng destination) {
-    // Haversine formula simplificada
-    const double earthRadius = 6371; // km
-    final dLat = _toRadians(destination.latitude - origin.latitude);
-    final dLng = _toRadians(destination.longitude - origin.longitude);
-    final a = _sin(dLat / 2) * _sin(dLat / 2) +
-        _cos(_toRadians(origin.latitude)) *
-            _cos(_toRadians(destination.latitude)) *
-            _sin(dLng / 2) *
-            _sin(dLng / 2);
-    final c = 2 * _atan2(_sqrt(a), _sqrt(1 - a));
-    return (earthRadius * c * 100).round() / 100;
-  }
-
-  static double _toRadians(double degrees) => degrees * 3.141592653589793 / 180;
-  static double _sin(double x) => _taylorSin(x);
-  static double _cos(double x) => _taylorCos(x);
-  static double _sqrt(double x) => x > 0 ? _newtonSqrt(x) : 0;
-  static double _atan2(double y, double x) => _taylorAtan2(y, x);
-
-  static double _taylorSin(double x) {
-    x = x % (2 * 3.141592653589793);
-    double result = x;
-    double term = x;
-    for (int i = 1; i <= 10; i++) {
-      term *= -x * x / ((2 * i) * (2 * i + 1));
-      result += term;
-    }
-    return result;
-  }
-
-  static double _taylorCos(double x) {
-    x = x % (2 * 3.141592653589793);
-    double result = 1;
-    double term = 1;
-    for (int i = 1; i <= 10; i++) {
-      term *= -x * x / ((2 * i - 1) * (2 * i));
-      result += term;
-    }
-    return result;
-  }
-
-  static double _newtonSqrt(double x) {
-    double guess = x / 2;
-    for (int i = 0; i < 20; i++) {
-      guess = (guess + x / guess) / 2;
-    }
-    return guess;
-  }
-
-  static double _taylorAtan2(double y, double x) {
-    if (x > 0) return _taylorAtan(y / x);
-    if (x < 0 && y >= 0) return _taylorAtan(y / x) + 3.141592653589793;
-    if (x < 0 && y < 0) return _taylorAtan(y / x) - 3.141592653589793;
-    if (x == 0 && y > 0) return 3.141592653589793 / 2;
-    if (x == 0 && y < 0) return -3.141592653589793 / 2;
-    return 0;
-  }
-
-  static double _taylorAtan(double x) {
-    if (x.abs() > 1) {
-      return (x > 0 ? 1 : -1) * (3.141592653589793 / 2 - _taylorAtan(1 / x.abs()));
-    }
-    double result = x;
-    double term = x;
-    for (int i = 1; i <= 20; i++) {
-      term *= -x * x;
-      result += term / (2 * i + 1);
-    }
-    return result;
   }
 }

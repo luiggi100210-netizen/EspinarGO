@@ -29,7 +29,7 @@ class ProfileRepository {
   }) async {
     try {
       final response = await _dioClient.patch(
-        '${ApiConstants.USERS}/profile',
+        '${ApiConstants.USERS}/me',
         data: {
           'full_name': fullName,
           'phone_number': phoneNumber,
@@ -76,7 +76,7 @@ class ProfileRepository {
         ),
       });
       final response = await _dioClient.post(
-        '${ApiConstants.USERS}/avatar',
+        '${ApiConstants.USERS}/me/avatar',
         data: formData,
       );
       return UserModel.fromJson(response.data as Map<String, dynamic>);
