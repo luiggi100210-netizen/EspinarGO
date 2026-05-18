@@ -18,7 +18,7 @@ class MapsService {
   // y en las variables de entorno del proyecto
   static const String _apiKey = String.fromEnvironment(
     'GOOGLE_MAPS_API_KEY',
-    defaultValue: '',
+    defaultValue: 'AIzaSyANFxlaDlRxJvHRO12zOfQJpN773CnEiqQ',
   );
 
   MapsService({required DioClient dioClient}) : _dioClient = dioClient;
