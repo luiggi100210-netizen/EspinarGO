@@ -45,8 +45,6 @@ services:
       DATABASE_URL: postgresql+asyncpg://postgres:password@postgres:5432/espinargo_db
       DATABASE_URL_SYNC: postgresql+psycopg2://postgres:password@postgres:5432/espinargo_db
       REDIS_URL: redis://redis:6379/0
-      ENVIRONMENT: development
-      DEBUG: "True"
     env_file:
       - .env
     volumes:

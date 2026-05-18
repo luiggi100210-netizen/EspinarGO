@@ -13,8 +13,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.security import hash_password, verify_password
-from app.middleware.auth import get_current_active_user
+from app.core.config import settings
+from app.core.security import hash_password, mask_phone_number, verify_password
+from app.middleware.auth import get_current_active_user, get_token_payload
 from app.models.user import User
 from app.schemas.auth import (
     ChangePasswordRequest,
@@ -119,9 +120,10 @@ async def send_otp(
     user = result.scalar_one_or_none()
 
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No hay cuenta con este número. Regístrate primero.",
+        return SendOTPResponse(
+            message="Si el número está registrado, recibirás un código SMS en breve.",
+            expires_in=settings.OTP_EXPIRE_MINUTES * 60,
+            masked_phone=mask_phone_number(data.phone_number),
         )
 
     try:
@@ -236,13 +238,14 @@ async def refresh_token(
 )
 async def logout(
     data: RefreshTokenRequest,
+    payload: dict = Depends(get_token_payload),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Cierra la sesión en el dispositivo actual.
     """
-    await AuthService.logout(db, data.refresh_token)
+    await AuthService.logout(db, data.refresh_token, jti=payload.get("jti"))
 
     return MessageResponse(message="Sesión cerrada correctamente")
 

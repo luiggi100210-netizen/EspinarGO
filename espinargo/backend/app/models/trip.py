@@ -48,6 +48,7 @@ class TripCancelReason(PyEnum):
 
     PASSENGER_CANCEL = "passenger_cancel"
     DRIVER_CANCEL = "driver_cancel"
+    ADMIN_CANCEL = "admin_cancel"
     NO_DRIVER_FOUND = "no_driver_found"
     DRIVER_NOT_ARRIVED = "driver_not_arrived"
 

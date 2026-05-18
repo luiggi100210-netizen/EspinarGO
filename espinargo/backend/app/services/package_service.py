@@ -31,11 +31,11 @@ from app.utils.serializers import package_to_public
 class PackageService:
     @staticmethod
     def _generate_tracking_code() -> str:
-        """Genera un código de seguimiento único. Formato: ESP-YYYYMMDD-NNNN"""
+        """Genera un código de seguimiento. Formato: ESP-YYYYMMDD-XXXXXX (16.7M posibilidades/día)."""
         now = datetime.now(timezone.utc)
         date_part = now.strftime("%Y%m%d")
-        number = secrets.randbelow(10000)
-        return f"ESP-{date_part}-{number:04d}"
+        suffix = secrets.token_hex(3).upper()
+        return f"ESP-{date_part}-{suffix}"
 
     @staticmethod
     async def create_package(
@@ -136,7 +136,10 @@ class PackageService:
             if not driver.driver_profile or driver.driver_profile.driver_status != DriverStatus.APPROVED:
                 raise PermissionError("Tu cuenta de conductor no está aprobada para tomar encomiendas")
 
-        package = await db.get(Package, package_id)
+        package_result = await db.execute(
+            select(Package).where(Package.id == package_id).with_for_update()
+        )
+        package = package_result.scalar_one_or_none()
 
         if not package:
             raise LookupError("Encomienda no encontrada")

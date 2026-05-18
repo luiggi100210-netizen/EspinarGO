@@ -11,12 +11,14 @@ NO contiene lógica de negocio ni acceso a base de datos.
 Es importado por auth_service.py y middleware/auth.py.
 """
 
+import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import PyJWTError as JWTError
 from passlib.context import CryptContext
 
 from app.core.config import settings
@@ -153,6 +155,7 @@ def create_access_token(
         "iat": datetime.now(timezone.utc),
         "exp": expire,
         "type": "access",
+        "jti": secrets.token_hex(16),
     }
 
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
@@ -297,6 +300,37 @@ def get_otp_expiry() -> datetime:
         >>> # datetime(2024, 4, 15, 12, 10, 0, tzinfo=timezone.utc)
     """
     return datetime.now(timezone.utc) + timedelta(minutes=settings.OTP_EXPIRE_MINUTES)
+
+
+def hash_otp(code: str) -> str:
+    """
+    Genera un hash SHA-256 del código OTP para almacenamiento seguro.
+
+    Los OTPs no se deben guardar en texto plano. SHA-256 es suficiente
+    aquí (a diferencia de bcrypt para contraseñas) porque los OTPs
+    expiran en minutos y tienen límite de intentos.
+
+    Args:
+        code: Código OTP en texto plano.
+
+    Returns:
+        str: Hash SHA-256 en hexadecimal (64 chars).
+    """
+    return hashlib.sha256(code.encode()).hexdigest()
+
+
+def verify_otp_code(plain_code: str, hashed_code: str) -> bool:
+    """
+    Verifica un código OTP usando comparación en tiempo constante.
+
+    Args:
+        plain_code: Código introducido por el usuario.
+        hashed_code: Hash almacenado en la base de datos.
+
+    Returns:
+        bool: True si el código es correcto.
+    """
+    return secrets.compare_digest(hash_otp(plain_code), hashed_code)
 
 
 def mask_phone_number(phone: str) -> str:

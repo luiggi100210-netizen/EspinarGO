@@ -193,15 +193,15 @@ class User(BaseModel, Base):
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
         "RefreshToken",
         back_populates="user",
-        cascade="all, delete-orphan",
-        lazy="selectin",
+        passive_deletes=True,
+        lazy="noload",
     )
 
     otp_codes: Mapped[list["OTPCode"]] = relationship(
         "OTPCode",
         back_populates="user",
-        cascade="all, delete-orphan",
-        lazy="selectin",
+        passive_deletes=True,
+        lazy="noload",
     )
 
     driver_profile: Mapped["DriverProfile | None"] = relationship(
@@ -347,9 +347,9 @@ class OTPCode(BaseModel, Base):
     )
 
     code: Mapped[str] = mapped_column(
-        String(6),
+        String(64),
         nullable=False,
-        doc="6 dígitos numéricos, ej: 472918",
+        doc="hash SHA-256 del código OTP de 6 dígitos (no se almacena en texto plano)",
     )
 
     purpose: Mapped[str] = mapped_column(

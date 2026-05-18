@@ -217,7 +217,10 @@ class TripService:
             if not driver.driver_profile or driver.driver_profile.driver_status != DriverStatus.APPROVED:
                 raise PermissionError("Tu cuenta de conductor no está aprobada para hacer ofertas")
 
-        trip = await db.get(Trip, data.trip_id)
+        trip_result = await db.execute(
+            select(Trip).where(Trip.id == data.trip_id).with_for_update()
+        )
+        trip = trip_result.scalar_one_or_none()
 
         if not trip:
             raise LookupError("Viaje no encontrado")
@@ -282,7 +285,10 @@ class TripService:
         data: AcceptOfferRequest,
         passenger: User,
     ) -> TripPublic:
-        trip = await db.get(Trip, trip_id)
+        trip_result = await db.execute(
+            select(Trip).where(Trip.id == trip_id).with_for_update()
+        )
+        trip = trip_result.scalar_one_or_none()
 
         if not trip:
             raise LookupError("Viaje no encontrado")
@@ -384,7 +390,7 @@ class TripService:
         elif is_driver:
             trip.cancel_reason = TripCancelReason.DRIVER_CANCEL
         else:
-            trip.cancel_reason = TripCancelReason.PASSENGER_CANCEL
+            trip.cancel_reason = TripCancelReason.ADMIN_CANCEL
         trip.cancelled_by = user.id
         trip.cancelled_at = datetime.now(timezone.utc)
 

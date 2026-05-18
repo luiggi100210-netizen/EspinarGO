@@ -25,7 +25,7 @@ from app.core.security import (
     verify_password,
 )
 from app.models.user import DriverProfile, RefreshToken, User, UserRole, UserStatus
-from app.services.otp_service import OTPService
+from app.services.otp_service import OTPService, get_redis
 
 
 # =============================================================================
@@ -307,9 +307,19 @@ class AuthService:
         }
 
     @staticmethod
-    async def logout(db: AsyncSession, refresh_token: str) -> None:
+    async def _revoke_jti(jti: str, ttl_seconds: int) -> None:
+        """Añade el JTI del access token a la blocklist en Redis."""
+        redis = await get_redis()
+        await redis.setex(f"revoked_jti:{jti}", ttl_seconds, "1")
+
+    @staticmethod
+    async def logout(
+        db: AsyncSession,
+        refresh_token: str,
+        jti: str | None = None,
+    ) -> None:
         """
-        Cierra la sesión actual revocando el refresh token.
+        Cierra la sesión actual revocando el refresh token y el access token.
 
         Es idempotente: si el token no existe o ya fue revocado,
         no lanza error.
@@ -317,6 +327,7 @@ class AuthService:
         Args:
             db: Sesión de base de datos.
             refresh_token: Token de refresco a revocar.
+            jti: ID único del access token a invalidar en Redis.
         """
         result = await db.execute(
             select(RefreshToken).where(RefreshToken.token == refresh_token)
@@ -325,6 +336,11 @@ class AuthService:
 
         if token_record:
             token_record.is_revoked = True
+
+        if jti:
+            await AuthService._revoke_jti(
+                jti, settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+            )
 
     @staticmethod
     async def logout_all_devices(db: AsyncSession, user_id: UUID) -> None:

@@ -110,6 +110,12 @@ async def upload_avatar(
             detail="La imagen no puede superar 5MB",
         )
 
+    if not any(contents.startswith(sig) for sig in _IMAGE_SIGNATURES):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El archivo no es una imagen válida",
+        )
+
     loop = asyncio.get_running_loop()
     result = await loop.run_in_executor(
         None,
@@ -157,6 +163,15 @@ async def update_vehicle(
 
     return driver_profile_to_public(driver_profile)
 
+
+_IMAGE_SIGNATURES = (
+    b"\xff\xd8\xff",        # JPEG
+    b"\x89PNG\r\n\x1a\n",  # PNG
+    b"GIF87a",              # GIF
+    b"GIF89a",              # GIF
+    b"RIFF",                # WebP
+)
+_PDF_SIGNATURE = b"%PDF"
 
 DOCUMENT_TYPES = {
     "dni_front": "dni_front_url",
@@ -210,6 +225,14 @@ async def upload_document(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El documento no puede superar 10MB",
+        )
+
+    is_image = any(contents.startswith(sig) for sig in _IMAGE_SIGNATURES)
+    is_pdf = contents.startswith(_PDF_SIGNATURE)
+    if not is_image and not is_pdf:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El archivo no es una imagen o PDF válido",
         )
 
     loop = asyncio.get_running_loop()

@@ -5,9 +5,13 @@ Endpoints WebSocket para comunicación en tiempo real.
 /ws/trips/{trip_id}  → Seguimiento de un viaje específico
 """
 
+import asyncio
+import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
+logger = logging.getLogger(__name__)
 from sqlalchemy import select
 
 from app.core.database import AsyncSessionLocal
@@ -40,12 +44,12 @@ async def _authenticate(token: str) -> User | None:
 
 
 @router.websocket("/ws/driver")
-async def driver_ws(
-    websocket: WebSocket,
-    token: str = Query(..., description="JWT access token"),
-):
+async def driver_ws(websocket: WebSocket):
     """
     Canal WebSocket exclusivo del conductor.
+
+    El primer mensaje debe ser el handshake de autenticación:
+        {"type": "auth", "token": "<access_token>"}
 
     Mensajes que el conductor envía al servidor:
         {"type": "location", "lat": "-14.832", "lng": "-71.013"}
@@ -56,13 +60,22 @@ async def driver_ws(
         {"type": "offer_accepted", "trip_id": "uuid"}
         {"type": "trip_update", "trip_id": "uuid", "status": "cancelled"}
     """
-    user = await _authenticate(token)
+    await websocket.accept()
+
+    try:
+        auth_msg = await asyncio.wait_for(websocket.receive_json(), timeout=10.0)
+    except (asyncio.TimeoutError, ValueError, TypeError):
+        await websocket.close(code=4001, reason="No autorizado")
+        return
+
+    token = auth_msg.get("token") if isinstance(auth_msg, dict) else None
+    user = await _authenticate(token) if token else None
 
     if not user or user.role not in (UserRole.DRIVER, UserRole.ADMIN):
         await websocket.close(code=4001, reason="No autorizado")
         return
 
-    await manager.connect_driver(user.id, websocket)
+    manager.connect_driver(user.id, websocket)
 
     async with AsyncSessionLocal() as db:
         user_db = await db.get(User, user.id)
@@ -115,7 +128,7 @@ async def driver_ws(
     except WebSocketDisconnect:
         pass
     except Exception:
-        pass
+        logger.exception("Error inesperado en driver_ws (user=%s)", user.id)
     finally:
         manager.disconnect_driver(user.id)
         async with AsyncSessionLocal() as db:
@@ -126,21 +139,29 @@ async def driver_ws(
 
 
 @router.websocket("/ws/trips/{trip_id}")
-async def trip_ws(
-    trip_id: UUID,
-    websocket: WebSocket,
-    token: str = Query(..., description="JWT access token"),
-):
+async def trip_ws(trip_id: UUID, websocket: WebSocket):
     """
     Canal WebSocket para seguimiento de un viaje en tiempo real.
 
-    Se conectan el pasajero y el conductor del viaje para recibir:
+    El primer mensaje debe ser el handshake de autenticación:
+        {"type": "auth", "token": "<access_token>"}
+
+    Mensajes que el cliente recibe:
         {"type": "driver_location", "lat": "...", "lng": "..."}
         {"type": "new_offer", "offer_id": "uuid", "offered_price": "7.50", "driver_name": "..."}
         {"type": "offer_accepted", "trip_id": "uuid"}
         {"type": "trip_update", "status": "in_progress"}
     """
-    user = await _authenticate(token)
+    await websocket.accept()
+
+    try:
+        auth_msg = await asyncio.wait_for(websocket.receive_json(), timeout=10.0)
+    except (asyncio.TimeoutError, ValueError, TypeError):
+        await websocket.close(code=4001, reason="No autorizado")
+        return
+
+    token = auth_msg.get("token") if isinstance(auth_msg, dict) else None
+    user = await _authenticate(token) if token else None
 
     if not user:
         await websocket.close(code=4001, reason="No autorizado")
@@ -162,7 +183,7 @@ async def trip_ws(
         await websocket.close(code=4003, reason="Acceso denegado")
         return
 
-    await manager.connect_trip(trip_id, websocket)
+    manager.connect_trip(trip_id, websocket)
 
     try:
         while True:
@@ -170,6 +191,6 @@ async def trip_ws(
     except WebSocketDisconnect:
         pass
     except Exception:
-        pass
+        logger.exception("Error inesperado en trip_ws (trip=%s, user=%s)", trip_id, user.id)
     finally:
         manager.disconnect_trip(trip_id, websocket)

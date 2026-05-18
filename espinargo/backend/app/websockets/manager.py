@@ -17,12 +17,15 @@ Canales Redis:
 
 import asyncio
 import json
+import logging
 from uuid import UUID
 
 import redis.asyncio as aioredis
 from fastapi import WebSocket
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 _CH_DRIVERS = "espinargo:ws:drivers"
 _CH_TRIP = "espinargo:ws:trip:"
@@ -85,7 +88,7 @@ class ConnectionManager:
                     driver_id = UUID(channel[len(_CH_DRIVER):])
                     await self._local_send_to_driver(driver_id, data)
             except Exception:
-                pass
+                logger.exception("Error procesando mensaje Redis en canal %s", message.get("channel"))
 
     # ─── Publish ──────────────────────────────────────────────────────────────
 
@@ -127,8 +130,7 @@ class ConnectionManager:
 
     # ─── API pública — Conductores ────────────────────────────────────────────
 
-    async def connect_driver(self, driver_id: UUID, ws: WebSocket) -> None:
-        await ws.accept()
+    def connect_driver(self, driver_id: UUID, ws: WebSocket) -> None:
         self._drivers[driver_id] = ws
 
     def disconnect_driver(self, driver_id: UUID) -> None:
@@ -144,8 +146,7 @@ class ConnectionManager:
 
     # ─── API pública — Viajes ─────────────────────────────────────────────────
 
-    async def connect_trip(self, trip_id: UUID, ws: WebSocket) -> None:
-        await ws.accept()
+    def connect_trip(self, trip_id: UUID, ws: WebSocket) -> None:
         self._trips.setdefault(trip_id, []).append(ws)
 
     def disconnect_trip(self, trip_id: UUID, ws: WebSocket) -> None:

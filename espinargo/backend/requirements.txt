@@ -17,7 +17,7 @@ psycopg2-binary==2.9.9
 redis==5.0.4
 
 # Seguridad y autenticación
-python-jose[cryptography]==3.3.0
+PyJWT==2.8.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.1.3
 

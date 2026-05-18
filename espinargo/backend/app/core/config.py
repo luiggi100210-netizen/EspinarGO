@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "EspinarGo API"
     APP_VERSION: str = "1.0.0"
     ENVIRONMENT: Literal["development", "staging", "production"] = "development"
-    DEBUG: bool = True
+    DEBUG: bool = False
     SECRET_KEY: str
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
 

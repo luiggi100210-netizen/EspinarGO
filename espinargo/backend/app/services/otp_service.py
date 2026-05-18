@@ -22,7 +22,7 @@ from twilio.base.exceptions import TwilioRestException
 from twilio.rest import Client as TwilioClient
 
 from app.core.config import settings
-from app.core.security import generate_otp_code, get_otp_expiry, mask_phone_number
+from app.core.security import generate_otp_code, get_otp_expiry, hash_otp, mask_phone_number, verify_otp_code
 from app.models.user import OTPCode, User
 
 
@@ -203,7 +203,7 @@ class OTPService:
 
         otp = OTPCode(
             user_id=user.id,
-            code=code,
+            code=hash_otp(code),
             purpose=purpose,
             expires_at=expires_at,
         )
@@ -276,7 +276,7 @@ class OTPService:
                 f"Has intentado muchas veces. Solicita un código nuevo."
             )
 
-        if otp.code != code:
+        if not verify_otp_code(code, otp.code):
             otp.attempts += 1
             remaining = settings.OTP_MAX_ATTEMPTS - otp.attempts
             raise ValueError(

@@ -14,12 +14,13 @@ from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError
+from jwt.exceptions import PyJWTError as JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.models.user import User, UserRole, UserStatus
+from app.services.otp_service import get_redis
 
 # =============================================================================
 # CONFIGURACIÓN DE SEGURIDAD
@@ -90,9 +91,16 @@ async def get_token_payload(
 
     try:
         payload = decode_access_token(credentials.credentials)
-        return payload
     except JWTError:
         raise CREDENTIALS_EXCEPTION
+
+    jti = payload.get("jti")
+    if jti:
+        redis = await get_redis()
+        if await redis.exists(f"revoked_jti:{jti}"):
+            raise CREDENTIALS_EXCEPTION
+
+    return payload
 
 
 async def get_current_user(
