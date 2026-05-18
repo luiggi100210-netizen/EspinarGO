@@ -128,28 +128,32 @@ class TripNotifier extends AsyncNotifier<TripState> {
 
     await _wsService!.connect(tripId);
 
-    // Escuchar nuevas ofertas
-    _subscriptions.add(_wsService!.onNewOffer.listen((data) {
-      final offer = TripOfferModel.fromJson(data);
+    // Escuchar nuevas ofertas — refresca via REST para obtener datos completos
+    _subscriptions.add(_wsService!.onNewOffer.listen((_) {
       final currentState = state.valueOrNull;
-      if (currentState != null) {
-        final updatedOffers = [...currentState.offers, offer];
-        state = AsyncValue.data(currentState.copyWith(
-          offers: updatedOffers,
-          flowStatus: TripFlowStatus.hasOffers,
-        ));
+      if (currentState?.currentTrip != null) {
+        getOffers(currentState!.currentTrip!.id);
       }
     }));
 
     // Escuchar actualizaciones del viaje
     _subscriptions.add(_wsService!.onTripUpdated.listen((data) {
-      final trip = TripModel.fromJson(data);
+      final status = data['status'] as String?;
       final currentState = state.valueOrNull;
-      if (currentState != null) {
-        state = AsyncValue.data(currentState.copyWith(
-          currentTrip: trip,
-          flowStatus: _mapTripStatusToFlowStatus(trip).flowStatus,
-        ));
+      if (currentState == null || status == null) return;
+      TripFlowStatus? newStatus;
+      switch (status) {
+        case 'in_progress':
+          newStatus = TripFlowStatus.inProgress;
+        case 'completed':
+          newStatus = TripFlowStatus.completed;
+        case 'cancelled':
+          newStatus = TripFlowStatus.cancelled;
+        case 'accepted':
+          newStatus = TripFlowStatus.accepted;
+      }
+      if (newStatus != null) {
+        state = AsyncValue.data(currentState.copyWith(flowStatus: newStatus));
       }
     }));
 
@@ -161,16 +165,6 @@ class TripNotifier extends AsyncNotifier<TripState> {
       if (currentState != null) {
         state = AsyncValue.data(currentState.copyWith(
           driverLocation: LatLng(lat, lng),
-        ));
-      }
-    }));
-
-    // Conductor llegó
-    _subscriptions.add(_wsService!.onDriverArrived.listen((_) {
-      final currentState = state.valueOrNull;
-      if (currentState != null) {
-        state = AsyncValue.data(currentState.copyWith(
-          flowStatus: TripFlowStatus.driverArrived,
         ));
       }
     }));

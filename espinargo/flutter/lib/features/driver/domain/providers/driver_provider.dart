@@ -1,13 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../../core/providers.dart';
 import '../../data/repositories/driver_repository.dart';
 import '../../data/services/driver_websocket_service.dart';
-import '../../../trips/data/models/trip_model.dart';
-import '../../../trips/data/models/trip_offer_model.dart';
 import '../../../home/data/services/location_service.dart';
 import 'driver_state.dart';
 
@@ -69,11 +66,10 @@ class DriverNotifier extends AsyncNotifier<DriverState> {
       _disconnectWebSocket();
 
       final repo = ref.read(driverRepositoryProvider);
-      final profile = await repo.setOnlineStatus(false);
+      await repo.setOnlineStatus(false);
 
       state = AsyncValue.data(currentState!.copyWith(
         flowStatus: DriverFlowStatus.offline,
-        driverProfile: profile,
         isLocationTracking: false,
       ));
     } else {
@@ -83,12 +79,14 @@ class DriverNotifier extends AsyncNotifier<DriverState> {
       ));
 
       final repo = ref.read(driverRepositoryProvider);
-      final profile = await repo.setOnlineStatus(true);
+      await repo.setOnlineStatus(true);
 
       await _connectWebSocket();
       await _startLocationTracking();
 
-      state = AsyncValue.data(DriverState.online(profile));
+      state = AsyncValue.data(currentState.copyWith(
+        flowStatus: DriverFlowStatus.online,
+      ));
     }
   }
 
@@ -124,27 +122,22 @@ class DriverNotifier extends AsyncNotifier<DriverState> {
       }
     }));
 
-    _subscriptions.add(_wsService!.onOfferAccepted.listen((data) {
-      final trip = TripModel.fromJson(data);
+    _subscriptions.add(_wsService!.onOfferAccepted.listen((data) async {
       final currentState = state.valueOrNull;
-      if (currentState != null) {
-        state = AsyncValue.data(currentState.copyWith(
-          currentTrip: trip,
-          flowStatus: DriverFlowStatus.offerAccepted,
-          pendingRequests: [],
-        ));
-      }
-    }));
-
-    _subscriptions.add(_wsService!.onPassengerLocation.listen((data) {
-      final lat = data['lat'] as double;
-      final lng = data['lng'] as double;
-      final currentState = state.valueOrNull;
-      if (currentState != null) {
-        state = AsyncValue.data(currentState.copyWith(
-          passengerLocation: LatLng(lat, lng),
-        ));
-      }
+      if (currentState == null) return;
+      // Marcar estado inmediatamente, luego cargar viaje completo via REST
+      state = AsyncValue.data(currentState.copyWith(
+        flowStatus: DriverFlowStatus.offerAccepted,
+        pendingRequests: [],
+      ));
+      try {
+        final repo = ref.read(driverRepositoryProvider);
+        final trip = await repo.getDriverActiveTrip();
+        final updatedState = state.valueOrNull;
+        if (trip != null && updatedState != null) {
+          state = AsyncValue.data(updatedState.copyWith(currentTrip: trip));
+        }
+      } catch (_) {}
     }));
   }
 
@@ -154,10 +147,7 @@ class DriverNotifier extends AsyncNotifier<DriverState> {
 
   Future<void> _startLocationTracking() async {
     _locationSubscription = LocationService.positionStream().listen((position) {
-      final repo = ref.read(driverRepositoryProvider);
       final wsService = ref.read(driverWebSocketProvider);
-
-      repo.updateDriverLocation(lat: position.latitude, lng: position.longitude);
       wsService.updateLocation(position.latitude, position.longitude);
 
       final currentState = state.valueOrNull;
@@ -290,7 +280,7 @@ class DriverNotifier extends AsyncNotifier<DriverState> {
       final earnings = await repo.getDriverEarnings();
 
       state = AsyncValue.data(currentState.copyWith(
-        todayEarnings: (earnings['today'] as num?)?.toDouble() ?? 0,
+        todayEarnings: double.tryParse(earnings['this_week_earnings'] as String? ?? '0') ?? 0,
         todayTrips: (earnings['total_trips'] as num?)?.toInt() ?? 0,
       ));
     } catch (_) {}

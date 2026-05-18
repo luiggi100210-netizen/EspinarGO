@@ -47,6 +47,7 @@ class TripRepository {
     try {
       final response =
           await _dioClient.get('${ApiConstants.TRIPS}/active');
+      if (response.data == null) return null;
       return TripModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) return null;

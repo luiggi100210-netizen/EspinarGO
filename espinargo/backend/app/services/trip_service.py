@@ -52,6 +52,7 @@ class TripService:
         )
         db.add(trip)
         await db.commit()
+        await db.refresh(trip)
 
         result = trip_to_public(trip)
         await manager.broadcast_to_drivers({

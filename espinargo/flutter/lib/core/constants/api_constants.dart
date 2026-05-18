@@ -51,7 +51,7 @@ class ApiConstants {
   static String tripById(String id) => "/api/v1/trips/$id";
   static String tripOffers(String id) => "/api/v1/trips/$id/offers";
   static String acceptOffer(String id) => "/api/v1/trips/$id/accept-offer";
-  static String makeOffer(String id) => "/api/v1/trips/$id/offer";
+  static const String MAKE_OFFER = "/api/v1/trips/offer";
   static String startTrip(String id) => "/api/v1/trips/$id/start";
   static String completeTrip(String id) => "/api/v1/trips/$id/complete";
   static String cancelTrip(String id) => "/api/v1/trips/$id/cancel";

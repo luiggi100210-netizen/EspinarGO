@@ -44,14 +44,27 @@ class DriverRepository {
   }) async {
     try {
       final response = await _dioClient.post(
-        ApiConstants.makeOffer(tripId),
+        ApiConstants.MAKE_OFFER,
         data: {
+          'trip_id': tripId,
           'offered_price': offeredPrice,
           if (message != null) 'message': message,
         },
       );
       return TripOfferModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
+      throw Exception(DioClient.parseError(e));
+    }
+  }
+
+  /// Obtiene el viaje activo del conductor.
+  Future<TripModel?> getDriverActiveTrip() async {
+    try {
+      final response = await _dioClient.get('${ApiConstants.TRIPS}/driver/active');
+      if (response.data == null) return null;
+      return TripModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return null;
       throw Exception(DioClient.parseError(e));
     }
   }
