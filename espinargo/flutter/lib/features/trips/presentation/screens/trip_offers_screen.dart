@@ -38,33 +38,6 @@ class TripOffersScreen extends ConsumerWidget {
                 );
               },
             ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 10,
-              offset: Offset(0, -2),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: ElevatedButton(
-            onPressed: offers.isEmpty ? null : () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-            child: Text(
-              offers.isEmpty
-                  ? 'Selecciona una oferta'
-                  : 'Selecciona una oferta (${offers.length} disponibles)',
-            ),
-          ),
-        ),
-      ),
     );
   }
 

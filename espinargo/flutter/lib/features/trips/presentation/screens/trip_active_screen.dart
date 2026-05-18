@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../home/presentation/widgets/map_widget.dart';
 import '../../domain/providers/trip_provider.dart';
+import '../../domain/providers/trip_state.dart';
 import '../widgets/trip_info_card.dart';
 import '../widgets/trip_status_bar.dart';
 
@@ -142,7 +144,7 @@ class TripActiveScreen extends ConsumerWidget {
                         children: [
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: () {},
+                              onPressed: () => _callDriver(trip.driver!.phoneNumber),
                               icon: const Icon(Icons.phone),
                               label: const Text('Llamar'),
                             ),
@@ -150,7 +152,7 @@ class TripActiveScreen extends ConsumerWidget {
                           const SizedBox(width: 12),
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: () {},
+                              onPressed: () => _openWhatsApp(trip.driver!.phoneNumber),
                               icon: const Icon(Icons.chat),
                               label: const Text('WhatsApp'),
                             ),
@@ -159,28 +161,6 @@ class TripActiveScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 16),
                     ],
-
-                    // Banner de llegada
-                    if (tripState?.flowStatus == TripFlowStatus.driverArrived)
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.successLight,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.location_on, color: AppColors.success),
-                            const SizedBox(width: 8),
-                            Text(
-                              '¡Tu conductor está aquí!',
-                              style: AppTextStyles.labelMedium.copyWith(
-                                color: AppColors.success,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
 
                     // Info del viaje
                     TripInfoCard(trip: trip),
@@ -206,6 +186,19 @@ class TripActiveScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _callDriver(String phone) async {
+    final uri = Uri(scheme: 'tel', path: phone);
+    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  }
+
+  Future<void> _openWhatsApp(String phone) async {
+    final number = phone.replaceAll(RegExp(r'\D'), '');
+    final uri = Uri.parse('https://wa.me/$number');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   Future<void> _cancelTrip(BuildContext context, WidgetRef ref) async {
@@ -236,5 +229,3 @@ class TripActiveScreen extends ConsumerWidget {
   }
 }
 
-// Importar el enum
-import '../../domain/providers/trip_state.dart';

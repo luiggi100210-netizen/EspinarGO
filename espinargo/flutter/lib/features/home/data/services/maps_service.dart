@@ -16,7 +16,10 @@ class MapsService {
 
   // API Key - configurada externamente en AndroidManifest.xml
   // y en las variables de entorno del proyecto
-  static const String _apiKey = 'YOUR_GOOGLE_MAPS_API_KEY';
+  static const String _apiKey = String.fromEnvironment(
+    'GOOGLE_MAPS_API_KEY',
+    defaultValue: '',
+  );
 
   MapsService({required DioClient dioClient}) : _dioClient = dioClient;
 
