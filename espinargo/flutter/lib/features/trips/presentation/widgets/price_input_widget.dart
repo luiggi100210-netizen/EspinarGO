@@ -129,6 +129,7 @@ class _PriceInputWidgetState extends State<PriceInputWidget> {
 
   Widget _buildRangeBar() {
     final price = double.tryParse(_priceText) ?? 0;
+    final isValid = price >= widget.minPrice && price <= widget.maxPrice;
     final progress = ((price - widget.minPrice) / (widget.maxPrice - widget.minPrice))
         .clamp(0.0, 1.0);
 

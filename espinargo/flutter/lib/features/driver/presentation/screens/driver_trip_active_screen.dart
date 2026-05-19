@@ -6,8 +6,10 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared/widgets/primary_button.dart';
+import '../../../trips/presentation/widgets/trip_info_card.dart';
 import '../../../trips/presentation/widgets/trip_status_bar.dart';
 import '../../domain/providers/driver_provider.dart';
+import '../../domain/providers/driver_state.dart';
 import '../widgets/passenger_info_card.dart';
 
 /// Pantalla del viaje activo desde la perspectiva del conductor.

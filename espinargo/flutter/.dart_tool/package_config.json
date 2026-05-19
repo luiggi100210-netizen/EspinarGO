@@ -710,6 +710,12 @@
       "languageVersion": "3.2"
     },
     {
+      "name": "mocktail",
+      "rootUri": "file:///C:/Users/userr/AppData/Local/Pub/Cache/hosted/pub.dev/mocktail-1.0.5",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
       "name": "nm",
       "rootUri": "file:///C:/Users/userr/AppData/Local/Pub/Cache/hosted/pub.dev/nm-0.5.0",
       "packageUri": "lib/",
@@ -968,18 +974,6 @@
       "languageVersion": "3.2"
     },
     {
-      "name": "socket_io_client",
-      "rootUri": "file:///C:/Users/userr/AppData/Local/Pub/Cache/hosted/pub.dev/socket_io_client-2.0.3+1",
-      "packageUri": "lib/",
-      "languageVersion": "2.12"
-    },
-    {
-      "name": "socket_io_common",
-      "rootUri": "file:///C:/Users/userr/AppData/Local/Pub/Cache/hosted/pub.dev/socket_io_common-2.0.3",
-      "packageUri": "lib/",
-      "languageVersion": "2.12"
-    },
-    {
       "name": "source_gen",
       "rootUri": "file:///C:/Users/userr/AppData/Local/Pub/Cache/hosted/pub.dev/source_gen-1.5.0",
       "packageUri": "lib/",
@@ -1184,16 +1178,10 @@
       "languageVersion": "3.4"
     },
     {
-      "name": "web_socket",
-      "rootUri": "file:///C:/Users/userr/AppData/Local/Pub/Cache/hosted/pub.dev/web_socket-1.0.1",
-      "packageUri": "lib/",
-      "languageVersion": "3.4"
-    },
-    {
       "name": "web_socket_channel",
-      "rootUri": "file:///C:/Users/userr/AppData/Local/Pub/Cache/hosted/pub.dev/web_socket_channel-3.0.3",
+      "rootUri": "file:///C:/Users/userr/AppData/Local/Pub/Cache/hosted/pub.dev/web_socket_channel-2.4.0",
       "packageUri": "lib/",
-      "languageVersion": "3.3"
+      "languageVersion": "2.15"
     },
     {
       "name": "win32",
@@ -1232,7 +1220,7 @@
       "languageVersion": "3.0"
     }
   ],
-  "generated": "2026-04-30T21:30:40.626819Z",
+  "generated": "2026-05-18T22:18:58.258733Z",
   "generator": "pub",
   "generatorVersion": "3.5.4",
   "flutterRoot": "file:///C:/src/flutter",

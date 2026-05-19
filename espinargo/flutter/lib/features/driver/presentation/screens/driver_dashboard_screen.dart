@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../trips/presentation/widgets/trip_info_card.dart';
 import '../../domain/providers/driver_provider.dart';
+import '../../domain/providers/driver_state.dart';
 import '../widgets/online_toggle.dart';
 import '../widgets/trip_request_card.dart';
 import '../widgets/earnings_summary_card.dart';

@@ -58,7 +58,7 @@ class DriverMarker {
     // Usar default marker ya que crear bitmaps personalizados
     // requiere información adicional del contexto
     return BitmapDescriptor.defaultMarkerWithHue(
-      isOnline ? BitmapDescriptor.hueOrange : BitmapDescriptor.hueGrey,
+      isOnline ? BitmapDescriptor.hueOrange : BitmapDescriptor.hueViolet,
     );
   }
 }

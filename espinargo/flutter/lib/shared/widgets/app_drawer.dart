@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
-import '../features/auth/data/models/user_model.dart';
+import '../../features/auth/data/models/user_model.dart';
 
 /// Drawer lateral con info del usuario y navegación.
 class AppDrawer extends StatelessWidget {

@@ -26,7 +26,7 @@ class PackagesScreen extends ConsumerWidget {
           ? const LoadingIndicator()
           : packageState.myPackages.isEmpty
               ? _buildEmptyState(context)
-              : _buildPackageList(context, packageState),
+              : _buildPackageList(context, packageState, ref),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/packages/send'),
         icon: const Icon(Icons.add),
@@ -57,7 +57,7 @@ class PackagesScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPackageList(BuildContext context, dynamic packageState) {
+  Widget _buildPackageList(BuildContext context, dynamic packageState, WidgetRef ref) {
     return RefreshIndicator(
       onRefresh: () => ref.read(packageProvider.notifier).loadMyPackages(),
       child: ListView.builder(

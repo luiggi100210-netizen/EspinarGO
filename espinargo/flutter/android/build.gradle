@@ -5,6 +5,21 @@ allprojects {
     }
 }
 
+// Provide flutter extension values for plugin subprojects that use
+// flutter.compileSdkVersion before the app's Flutter Gradle plugin runs.
+subprojects {
+    if (name != 'app') {
+        ext {
+            flutter = [
+                compileSdkVersion: 35,
+                minSdkVersion    : 21,
+                targetSdkVersion : 35,
+                ndkVersion       : '25.1.8937393',
+            ]
+        }
+    }
+}
+
 rootProject.buildDir = "../build"
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"

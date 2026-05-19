@@ -96,6 +96,20 @@ class _TrackPackageScreenState extends ConsumerState<TrackPackageScreen> {
     );
   }
 
+  Color _packageStatusColor(String status) {
+    switch (status) {
+      case 'delivered':
+        return AppColors.success;
+      case 'cancelled':
+        return AppColors.error;
+      case 'in_transit':
+      case 'picked_up':
+        return AppColors.primary;
+      default:
+        return AppColors.textSecondary;
+    }
+  }
+
   Widget _buildPackageInfo(PackageModel package) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -139,7 +153,7 @@ class _TrackPackageScreenState extends ConsumerState<TrackPackageScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Estado', style: AppTextStyles.labelSmall),
-                    Text(package.statusLabel, style: AppTextStyles.bodyMedium.copyWith(color: package.statusColor)),
+                    Text(package.statusLabel, style: AppTextStyles.bodyMedium.copyWith(color: _packageStatusColor(package.status))),
                   ],
                 ),
               ),

@@ -18,6 +18,7 @@ class AuthTextField extends StatelessWidget {
   final ValueChanged<String>? onChanged;
   final bool enabled;
   final int? maxLength;
+  final int? maxLines;
   final TextInputAction textInputAction;
   final ValueChanged<String>? onSubmitted;
 
@@ -35,6 +36,7 @@ class AuthTextField extends StatelessWidget {
     this.onChanged,
     this.enabled = true,
     this.maxLength,
+    this.maxLines = 1,
     this.textInputAction = TextInputAction.next,
     this.onSubmitted,
   });
@@ -57,6 +59,7 @@ class AuthTextField extends StatelessWidget {
           onChanged: onChanged,
           enabled: enabled,
           maxLength: maxLength,
+          maxLines: maxLines,
           textInputAction: textInputAction,
           onFieldSubmitted: onSubmitted,
           style: AppTextStyles.bodyMedium,

@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../data/models/package_model.dart';
+import '../../data/models/tracking_event_model.dart';
 import '../../domain/providers/package_provider.dart';
 import '../widgets/tracking_timeline.dart';
 
@@ -16,8 +17,8 @@ class PackageDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return FutureBuilder<PackageModel>(
-      future: _loadPackage(ref, trackingCode),
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _loadData(ref, trackingCode),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(body: LoadingIndicator());
@@ -30,7 +31,8 @@ class PackageDetailScreen extends ConsumerWidget {
           );
         }
 
-        final package = snapshot.data!;
+        final package = snapshot.data!['package'] as PackageModel;
+        final history = snapshot.data!['tracking_history'] as List<TrackingEventModel>;
         return Scaffold(
           appBar: AppBar(
             title: Text(package.trackingCode),
@@ -53,7 +55,7 @@ class PackageDetailScreen extends ConsumerWidget {
                 Text('Historial', style: AppTextStyles.labelLarge),
                 const SizedBox(height: 12),
                 TrackingTimeline(
-                  events: package.trackingHistory,
+                  events: history,
                   currentStatus: package.status,
                 ),
               ],
@@ -64,10 +66,9 @@ class PackageDetailScreen extends ConsumerWidget {
     );
   }
 
-  Future<PackageModel> _loadPackage(WidgetRef ref, String code) async {
+  Future<Map<String, dynamic>> _loadData(WidgetRef ref, String code) async {
     final repo = ref.read(packageRepositoryProvider);
-    final result = await repo.trackPackage(code);
-    return result['package'] as PackageModel;
+    return repo.trackPackage(code);
   }
 
   Widget _buildHeader(PackageModel package) {
@@ -107,7 +108,7 @@ class PackageDetailScreen extends ConsumerWidget {
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
       child: Column(
         children: [
-          _buildInfoRow('De', package.senderName, Icons.arrow_upward),
+          _buildInfoRow('De', package.sender?.fullName ?? 'N/A', Icons.arrow_upward),
           const Divider(),
           _buildInfoRow('Para', package.recipientName, Icons.arrow_downward),
           const Divider(),
