@@ -5,13 +5,13 @@ on:
     branches:
       - master
     paths:
-      - "flutter/**"
+      - "espinargo/flutter/**"
       - ".github/workflows/flutter-ci.yml"
   pull_request:
     branches:
       - master
     paths:
-      - "flutter/**"
+      - "espinargo/flutter/**"
       - ".github/workflows/flutter-ci.yml"
 
 jobs:
@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: flutter
+        working-directory: espinargo/flutter
 
     steps:
       - name: Checkout

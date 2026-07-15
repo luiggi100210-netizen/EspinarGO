@@ -5,13 +5,13 @@ on:
     branches:
       - master
     paths:
-      - "backend/**"
+      - "espinargo/backend/**"
       - ".github/workflows/deploy.yml"
   pull_request:
     branches:
       - master
     paths:
-      - "backend/**"
+      - "espinargo/backend/**"
       - ".github/workflows/deploy.yml"
 
 jobs:
@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: backend
+        working-directory: espinargo/backend
 
     services:
       postgres:
@@ -72,7 +72,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: backend/requirements.txt
+          cache-dependency-path: espinargo/backend/requirements.txt
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -100,7 +100,7 @@ jobs:
         run: npm install -g @railway/cli
 
       - name: Deploy to Railway
-        working-directory: backend
+        working-directory: espinargo/backend
         run: railway up --detach
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
