@@ -1,0 +1,44 @@
+name: Flutter CI
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "flutter/**"
+      - ".github/workflows/flutter-ci.yml"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - "flutter/**"
+      - ".github/workflows/flutter-ci.yml"
+
+jobs:
+  test:
+    name: Analyze & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.5"
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        # Errores y warnings bloquean; los infos de estilo no.
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run tests
+        run: flutter test
