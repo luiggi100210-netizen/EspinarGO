@@ -5,7 +5,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../../core/providers.dart';
 import '../../data/models/trip_model.dart';
-import '../../data/models/trip_offer_model.dart';
 import '../../data/repositories/trip_repository.dart';
 import '../../data/services/trip_websocket_service.dart';
 import 'trip_state.dart';

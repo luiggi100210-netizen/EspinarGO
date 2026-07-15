@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../trips/presentation/widgets/trip_info_card.dart';
 import '../../domain/providers/driver_provider.dart';
 import '../../domain/providers/driver_state.dart';
 import '../widgets/online_toggle.dart';
@@ -190,7 +189,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
         tripRequest: request,
         suggestedPrice: price,
         onSubmit: (price, message) async {
-          final success = await ref.read(driverProvider.notifier).makeOffer(
+          await ref.read(driverProvider.notifier).makeOffer(
                 tripId: request['trip_id'] as String,
                 price: price,
                 message: message,

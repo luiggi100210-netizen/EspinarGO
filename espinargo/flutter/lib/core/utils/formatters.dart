@@ -1,5 +1,4 @@
 import 'package:intl/intl.dart';
-import '../constants/app_constants.dart';
 
 /// Funciones para formatear datos para mostrar en la UI.
 class Formatters {

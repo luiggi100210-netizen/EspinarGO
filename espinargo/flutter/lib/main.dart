@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
-import 'core/constants/app_constants.dart';
 
 void main() async {
   // Asegurar que Flutter esté inicializado

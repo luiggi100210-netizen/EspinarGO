@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared/widgets/primary_button.dart';
-import '../../../trips/presentation/widgets/trip_info_card.dart';
-import '../../../trips/data/models/trip_model.dart';
 import '../widgets/make_offer_sheet.dart';
 
 /// Pantalla de detalle de una solicitud de viaje.

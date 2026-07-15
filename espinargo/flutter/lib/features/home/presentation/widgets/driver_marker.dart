@@ -1,7 +1,6 @@
-import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'dart:ui' show Offset;
 
-import '../../../../core/theme/app_colors.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 /// Genera marcadores personalizados para los conductores.
 class DriverMarker {
@@ -12,7 +11,6 @@ class DriverMarker {
     required String vehicleType,
     bool isOnline = true,
   }) {
-    final color = isOnline ? AppColors.primary : AppColors.textDisabled;
     final emoji = vehicleType == 'mototaxi' ? '🛺' : '🚗';
 
     return Marker(

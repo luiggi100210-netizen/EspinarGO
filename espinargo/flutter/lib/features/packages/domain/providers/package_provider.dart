@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/providers.dart';
 import '../../data/repositories/package_repository.dart';
 import '../../data/models/package_model.dart';

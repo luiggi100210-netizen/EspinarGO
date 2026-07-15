@@ -75,9 +75,6 @@ class _PriceInputWidgetState extends State<PriceInputWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final price = double.tryParse(_priceText) ?? 0;
-    final isValid = price >= widget.minPrice && price <= widget.maxPrice;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

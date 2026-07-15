@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../../core/utils/formatters.dart';
@@ -47,8 +45,6 @@ class RouteModel {
     final leg = legs.first as Map<String, dynamic>;
 
     // Extraer distancia y tiempo
-    final distanceText = leg['distance']?['text'] as String? ?? '';
-    final durationText = leg['duration']?['text'] as String? ?? '';
     final distanceValue = leg['distance']?['value'] as num? ?? 0; // en metros
     final durationValue = leg['duration']?['value'] as num? ?? 0; // en segundos
 
