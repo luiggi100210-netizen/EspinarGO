@@ -1,9 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import 'package:espinargo_app/core/network/dio_client.dart';
 import 'package:espinargo_app/features/auth/data/models/user_model.dart';
 import 'package:espinargo_app/features/auth/data/models/auth_response_model.dart';
 import 'package:espinargo_app/features/auth/data/repositories/auth_repository.dart';

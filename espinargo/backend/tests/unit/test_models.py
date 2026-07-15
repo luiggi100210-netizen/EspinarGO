@@ -22,6 +22,16 @@ from app.models.user import (
     UserStatus,
 )
 
+# Las relationships de User referencian Trip, Rating y Package por nombre;
+# hay que registrar esos modelos y configurar los mappers para poder
+# instanciar los modelos sin base de datos.
+import app.models.package  # noqa: E402, F401
+import app.models.rating  # noqa: E402, F401
+import app.models.trip  # noqa: E402, F401
+from sqlalchemy.orm import configure_mappers
+
+configure_mappers()
+
 
 # =============================================================================
 # Helpers
@@ -36,10 +46,7 @@ def _make_user(**kwargs) -> User:
         "status": UserStatus.ACTIVE,
     }
     defaults.update(kwargs)
-    user = User.__new__(User)
-    for k, v in defaults.items():
-        setattr(user, k, v)
-    return user
+    return User(**defaults)
 
 
 def _make_driver_profile(**kwargs) -> DriverProfile:
@@ -53,18 +60,12 @@ def _make_driver_profile(**kwargs) -> DriverProfile:
         "is_online": False,
     }
     defaults.update(kwargs)
-    dp = DriverProfile.__new__(DriverProfile)
-    for k, v in defaults.items():
-        setattr(dp, k, v)
-    return dp
+    return DriverProfile(**defaults)
 
 
 def _make_refresh_token(expires_at: datetime) -> RefreshToken:
     """Crea un RefreshToken sin DB."""
-    rt = RefreshToken.__new__(RefreshToken)
-    rt.expires_at = expires_at
-    rt.is_revoked = False
-    return rt
+    return RefreshToken(expires_at=expires_at, is_revoked=False)
 
 
 # =============================================================================

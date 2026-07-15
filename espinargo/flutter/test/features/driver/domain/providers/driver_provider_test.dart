@@ -71,7 +71,6 @@ void _stubIdleWs(MockDriverWebSocketService ws) {
   when(() => ws.onNewTripRequest).thenAnswer((_) => const Stream.empty());
   when(() => ws.onTripCancelled).thenAnswer((_) => const Stream.empty());
   when(() => ws.onOfferAccepted).thenAnswer((_) => const Stream.empty());
-  when(() => ws.onPassengerLocation).thenAnswer((_) => const Stream.empty());
   when(() => ws.disconnect()).thenReturn(null);
   when(() => ws.dispose()).thenReturn(null);
 }
@@ -158,10 +157,6 @@ void main() {
 
       when(() => mockRepo.getMyDriverProfile()).thenAnswer((_) async => profile);
       when(() => mockRepo.setOnlineStatus(true)).thenAnswer((_) async => onlineProfile);
-      when(() => mockRepo.updateDriverLocation(
-            lat: any(named: 'lat'),
-            lng: any(named: 'lng'),
-          )).thenAnswer((_) async {});
       _stubIdleWs(mockWs);
 
       final container = _makeContainer(mockRepo, mockWs);
@@ -386,9 +381,12 @@ void main() {
     test('carga ganancias del día correctamente', () async {
       when(() => mockRepo.getMyDriverProfile())
           .thenAnswer((_) async => _makeProfile(isOnline: false));
+      // Contrato real del backend: DriverEarningsResponse (schemas/trip.py)
       when(() => mockRepo.getDriverEarnings()).thenAnswer((_) async => {
-            'today': 42.5,
+            'total_earnings': '120.00',
             'total_trips': 3,
+            'this_week_earnings': '42.50',
+            'this_month_earnings': '80.00',
           });
 
       final container = _makeContainer(mockRepo, mockWs);

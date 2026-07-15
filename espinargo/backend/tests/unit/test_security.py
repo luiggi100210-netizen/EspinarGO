@@ -12,7 +12,8 @@ import re
 from datetime import timedelta, timezone, datetime
 
 import pytest
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import PyJWTError as JWTError
 from uuid import UUID
 
 from app.core.config import settings

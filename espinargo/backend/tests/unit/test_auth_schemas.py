@@ -340,10 +340,15 @@ class TestUpdateProfileRequestSchema:
         with pytest.raises(ValidationError):
             UpdateProfileRequest(preferred_lang="espanol")
 
-    def test_preferred_lang_5_chars_accepted(self):
-        """preferred_lang de 5 chars es aceptado."""
-        req = UpdateProfileRequest(preferred_lang="es-PE")
-        assert req.preferred_lang == "es-PE"
+    def test_preferred_lang_valid_values_accepted(self):
+        """preferred_lang acepta los idiomas soportados ('es' y 'qu')."""
+        assert UpdateProfileRequest(preferred_lang="es").preferred_lang == "es"
+        assert UpdateProfileRequest(preferred_lang="qu").preferred_lang == "qu"
+
+    def test_preferred_lang_unsupported_rejected(self):
+        """preferred_lang rechaza idiomas fuera de 'es'/'qu' como 'es-PE'."""
+        with pytest.raises(ValidationError):
+            UpdateProfileRequest(preferred_lang="es-PE")
 
     def test_email_provided(self):
         """Email puede ser proporcionado."""

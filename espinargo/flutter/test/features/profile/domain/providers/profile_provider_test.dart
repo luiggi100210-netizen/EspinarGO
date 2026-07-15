@@ -7,7 +7,6 @@ import 'package:espinargo_app/features/auth/domain/providers/auth_provider.dart'
 import 'package:espinargo_app/features/auth/data/repositories/auth_repository.dart';
 import 'package:espinargo_app/features/profile/data/repositories/profile_repository.dart';
 import 'package:espinargo_app/features/profile/domain/providers/profile_provider.dart';
-import 'package:espinargo_app/features/profile/domain/providers/profile_state.dart';
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 

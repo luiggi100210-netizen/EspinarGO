@@ -60,7 +60,6 @@ void _stubIdleWs(MockTripWebSocketService ws) {
   when(() => ws.onNewOffer).thenAnswer((_) => const Stream.empty());
   when(() => ws.onTripUpdated).thenAnswer((_) => const Stream.empty());
   when(() => ws.onDriverLocation).thenAnswer((_) => const Stream.empty());
-  when(() => ws.onDriverArrived).thenAnswer((_) => const Stream.empty());
   when(() => ws.onTripStarted).thenAnswer((_) => const Stream.empty());
   when(() => ws.onTripCompleted).thenAnswer((_) => const Stream.empty());
   when(() => ws.dispose()).thenReturn(null);
