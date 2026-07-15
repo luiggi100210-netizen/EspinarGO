@@ -10,7 +10,6 @@ Cada viaje puede tener hasta 2 calificaciones:
 """
 
 from enum import Enum as PyEnum
-from uuid import uuid4
 
 from sqlalchemy import Enum, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
@@ -62,7 +61,7 @@ class Rating(BaseModel, Base):
         ),
     )
 
-    trip_id: Mapped[uuid4] = mapped_column(
+    trip_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("trips.id", ondelete="CASCADE"),
         nullable=False,
@@ -70,7 +69,7 @@ class Rating(BaseModel, Base):
         doc="al qué viaje pertenece esta calificación",
     )
 
-    rater_id: Mapped[uuid4 | None] = mapped_column(
+    rater_id: Mapped[UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
@@ -78,7 +77,7 @@ class Rating(BaseModel, Base):
         doc="quien da la calificación (nullable para conservar rating si el usuario es eliminado)",
     )
 
-    rated_id: Mapped[uuid4 | None] = mapped_column(
+    rated_id: Mapped[UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
