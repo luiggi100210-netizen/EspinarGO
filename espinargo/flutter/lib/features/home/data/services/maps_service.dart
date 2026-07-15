@@ -14,12 +14,10 @@ class MapsService {
   // URL base de Google APIs
   static const String _baseUrl = 'https://maps.googleapis.com/maps/api';
 
-  // API Key - configurada externamente en AndroidManifest.xml
-  // y en las variables de entorno del proyecto
-  static const String _apiKey = String.fromEnvironment(
-    'GOOGLE_MAPS_API_KEY',
-    defaultValue: 'AIzaSyANFxlaDlRxJvHRO12zOfQJpN773CnEiqQ',
-  );
+  // API Key - inyectada en tiempo de compilación con --dart-define.
+  // Nunca debe tener un valor por defecto: el repo es público.
+  // Ver flutter/README.md para las instrucciones de build.
+  static const String _apiKey = String.fromEnvironment('GOOGLE_MAPS_API_KEY');
 
   MapsService({required DioClient dioClient}) : _dioClient = dioClient;
 

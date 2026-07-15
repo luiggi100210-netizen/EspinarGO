@@ -6,6 +6,19 @@ plugins {
     id "com.google.gms.google-services"
 }
 
+// Flutter pasa los --dart-define a Gradle como lista base64 separada por comas.
+// Se extrae GOOGLE_MAPS_API_KEY para inyectarla en el AndroidManifest,
+// de modo que la clave tenga una única fuente: el comando de build.
+def dartDefines = [GOOGLE_MAPS_API_KEY: '']
+if (project.hasProperty('dart-defines')) {
+    project.property('dart-defines').split(',').each { entry ->
+        def pair = new String(entry.decodeBase64(), 'UTF-8').split('=', 2)
+        if (pair.length == 2 && dartDefines.containsKey(pair[0])) {
+            dartDefines[pair[0]] = pair[1]
+        }
+    }
+}
+
 android {
     namespace = "com.yauritaxi.app"
     compileSdk = 35
@@ -29,6 +42,7 @@ android {
         targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders += dartDefines
     }
 
     buildTypes {
